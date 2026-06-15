@@ -136,9 +136,13 @@ def build_voucher_html(payload: dict) -> str:
     vtype = payload.get("type", "")
     code = payload.get("code", "—")
     title = payload.get("title", "Voucher")
-    description_lines = (payload.get("description") or "").split(". ", 1)
-    desc_line_1 = description_lines[0]
-    desc_line_2 = description_lines[1] if len(description_lines) > 1 else ""
+    # Quebra a descrição em até 2 linhas — split em qualquer fim de frase
+    # (. ! ?) seguido de espaço. Permite mensagens longas com 2 sentenças.
+    import re as _re
+    _desc_raw = payload.get("description") or ""
+    _parts = _re.split(r"(?<=[.!?])\s+", _desc_raw, maxsplit=1)
+    desc_line_1 = _parts[0]
+    desc_line_2 = _parts[1] if len(_parts) > 1 else ""
     # Campos vazios viram linha pra preencher à caneta no balcão.
     # Underscore HTML não renderiza linha contínua, então uso uma borda CSS.
     BLANK_LINE = '<span class="blank"></span>'
