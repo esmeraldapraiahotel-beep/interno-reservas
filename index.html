@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Esmeralda · Vouchers Internos</title>
+<style>
+  :root {
+    --bg: #f6f1e9;
+    --card: #ffffff;
+    --ink: #342010;
+    --ink-soft: #6b554a;
+    --accent: #5c4836;
+    --accent-2: #846b54;
+    --border: #e0d4c3;
+    --danger: #b54545;
+    --ok: #2c8c63;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Inter", "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 20px 100px;
+  }
+  header {
+    background: linear-gradient(135deg, #342010 0%, #5c4836 100%);
+    color: #fff;
+    padding: 22px 24px;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 24px -12px rgba(0,0,0,0.25);
+  }
+  header h1 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    letter-spacing: 0.5px;
+  }
+  header p { margin: 0; opacity: 0.85; font-size: 13px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--ink);
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--accent);
+  }
+  .field input[readonly] { background: #faf5ec; }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .row .field { margin-bottom: 14px; }
+  .btn {
+    width: 100%;
+    padding: 14px 18px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: var(--ink); }
+  .btn:disabled { background: var(--ink-soft); cursor: not-allowed; opacity: 0.6; }
+  .btn-secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+  }
+  .btn-secondary:hover { background: var(--accent); color: #fff; }
+  .alert {
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+  .alert-ok { background: rgba(44,140,99,0.12); color: var(--ok); }
+  .alert-err { background: rgba(181,69,69,0.12); color: var(--danger); }
+  .alert-info { background: rgba(92,72,54,0.1); color: var(--accent); }
+  .row-actions { display: flex; gap: 10px; margin-top: 14px; }
+  .row-actions .btn { flex: 1; }
+  .lookup-row {
+    display: flex; gap: 8px; align-items: end;
+  }
+  .lookup-row .field { flex: 1; margin: 0; }
+  .lookup-row .btn { width: auto; padding: 11px 18px; flex-shrink: 0; height: 47px; }
+  .small {
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 4px;
+  }
+  h2 {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin: 0 0 12px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    background: rgba(92,72,54,0.12);
+    color: var(--accent);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+  }
+  .tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    background: #fff;
+    margin-right: 6px;
+    margin-bottom: 6px;
+  }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .footer-status {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 16px;
+    font-size: 12px;
+    text-align: center;
+  }
+  .footer-status.online { background: var(--ok); }
+  .footer-status.offline { background: var(--danger); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Vouchers Internos</h1>
+    <p>Reservas Esmeralda Praia Hotel</p>
+  </header>
+
+  <div id="alert-area"></div>
+
+  <!-- Tabs -->
+  <div style="margin-bottom: 16px">
+    <button class="tab active" data-tab="single">Emitir 1 voucher</button>
+    <button class="tab" data-tab="batch">Upload de planilha</button>
+  </div>
+
+  <!-- TAB: Single -->
+  <div id="tab-single">
+    <div class="card">
+      <h2>Tipo de voucher</h2>
+      <div class="field">
+        <select id="voucher-type">
+          <option value="">Selecione…</option>
+          <option value="welcome_drink">Welcome Drink</option>
+          <option value="gelato">Gelato Liberado</option>
+          <option value="drink_liberado">Drink Liberado</option>
+          <option value="city_tour">City Tour</option>
+          <option value="passeio_pipa">Passeio Pipa</option>
+          <option value="passeio_litoral_norte">Passeio Litoral Norte</option>
+          <option value="vila_cvc">Vila CVC · 15% OFF</option>
+          <option value="hospede_raiz">Hóspede Raiz</option>
+          <option value="hospede_romantico">Hóspede Romântico</option>
+        </select>
+        <div class="small" id="voucher-desc"></div>
+      </div>
+    </div>
+
+    <div class="card" id="card-lookup">
+      <h2>Buscar reserva</h2>
+      <div class="lookup-row">
+        <div class="field">
+          <label>Código da reserva</label>
+          <input id="lookup-code" placeholder="Ex.: 3463087" autocomplete="off" inputmode="numeric">
+        </div>
+        <button class="btn" id="btn-lookup">Buscar</button>
+      </div>
+      <div class="small">Encontrando a reserva, o nome e o quarto são preenchidos automaticamente. Caso não ache, preencha manualmente abaixo.</div>
+    </div>
+
+    <div class="card" id="card-pick" style="display: none">
+      <h2>Quem vai receber?</h2>
+      <div id="pick-list" style="display: flex; flex-direction: column; gap: 8px"></div>
+    </div>
+
+    <div class="card" id="card-form">
+      <h2>Dados do voucher</h2>
+      <div class="row">
+        <div class="field">
+          <label>Nome do hóspede</label>
+          <input id="f-name" placeholder="Ex.: João da Silva">
+        </div>
+        <div class="field">
+          <label>Quarto</label>
+          <input id="f-room" placeholder="Ex.: 204" inputmode="numeric">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Reserva</label>
+          <input id="f-reserva" placeholder="Ex.: 3463087" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label>Validade</label>
+          <input id="f-validade" placeholder="Ex.: 15/06 23h">
+        </div>
+      </div>
+      <div class="field">
+        <label>Observação (opcional)</label>
+        <input id="f-obs" placeholder="Ex.: Mesa do bar do salão">
+      </div>
+    </div>
+
+    <button class="btn" id="btn-print" disabled>🖨️ Imprimir voucher</button>
+  </div>
+
+  <!-- TAB: Batch -->
+  <div id="tab-batch" style="display: none">
+    <div class="card">
+      <h2>Upload de planilha</h2>
+      <div class="alert alert-info">
+        ⚠ Modo placeholder — fluxo em construção, vou habilitar depois.
+      </div>
+      <div class="field">
+        <label>Planilha .xlsx ou .csv</label>
+        <input type="file" id="batch-file" accept=".xlsx,.csv">
+      </div>
+      <div class="field">
+        <label>Tipo de voucher (aplicado a todos)</label>
+        <select id="batch-type">
+          <option value="welcome_drink">Welcome Drink</option>
+          <option value="gelato">Gelato Liberado</option>
+          <option value="drink_liberado">Drink Liberado</option>
+          <option value="city_tour">City Tour</option>
+          <option value="passeio_pipa">Passeio Pipa</option>
+          <option value="passeio_litoral_norte">Passeio Litoral Norte</option>
+          <option value="vila_cvc">Vila CVC · 15% OFF</option>
+          <option value="hospede_raiz">Hóspede Raiz</option>
+          <option value="hospede_romantico">Hóspede Romântico</option>
+        </select>
+      </div>
+      <button class="btn" disabled>Processar planilha (em breve)</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer-status" id="printer-status">Verificando impressora local…</div>
+
+<script>
+// ─── Config ──────────────────────────────────────────────────
+const PRINTER_URL = "http://localhost:9876"; // server local Python
+const SUPABASE_URL = "https://lafiidrevxommwtvxcws.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhZmlpZHJldnhvbW13dHZ4Y3dzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY5NzY2NjksImV4cCI6MjA2MjU1MjY2OX0.7AzCDqM7XbnGYqRcF7v5BoxRGTLBHnXh-Cqzwo0jD0c";
+
+const VOUCHER_TYPES = {
+  welcome_drink: {
+    label: "Welcome Drink",
+    title: "Welcome Cocktail",
+    subtitle: "Seja muito bem-vindo!",
+    description: "Te oferecemos um delicioso drink de boas-vindas para brindar à sua chegada.",
+    requires_guest: false,
+    default_validity: "Apresente no bar",
+  },
+  gelato: {
+    label: "Gelato Liberado",
+    title: "Gelato Liberado",
+    subtitle: "Use esse voucher para resgatar",
+    description: "o seu gelato italiano do dia!",
+    requires_guest: true,
+    default_validity: "Válido hoje, 23h",
+  },
+  drink_liberado: {
+    label: "Drink Liberado",
+    title: "Drink Liberado",
+    subtitle: "Cortesia da casa",
+    description: "1 drink à escolha. Apresente no bar.",
+    requires_guest: true,
+    default_validity: "Válido hoje, 23h",
+  },
+  city_tour: {
+    label: "City Tour",
+    title: "City Tour",
+    subtitle: "Passeio cortesia",
+    description: "Apresente na recepção para reservar seu passeio.",
+    requires_guest: true,
+    default_validity: "Reservar com 24h",
+  },
+  passeio_pipa: {
+    label: "Passeio Pipa",
+    title: "Passeio para Pipa",
+    subtitle: "Passeio cortesia",
+    description: "Apresente na recepção para reservar.",
+    requires_guest: true,
+    default_validity: "Reservar com 24h",
+  },
+  passeio_litoral_norte: {
+    label: "Passeio Litoral Norte",
+    title: "Passeio Litoral Norte",
+    subtitle: "Passeio cortesia",
+    description: "Apresente na recepção para reservar.",
+    requires_guest: true,
+    default_validity: "Reservar com 24h",
+  },
+  vila_cvc: {
+    label: "Vila CVC · 15% OFF",
+    title: "Vila Promo · 15% OFF",
+    subtitle: "Desconto especial CVC",
+    description: "Apresente esse voucher na loja Vila CVC.",
+    requires_guest: true,
+    default_validity: "Válido durante a estadia",
+  },
+  hospede_raiz: {
+    label: "Hóspede Raiz",
+    title: "Hóspede Raiz",
+    subtitle: "Cortesia especial",
+    description: "Apresente na recepção.",
+    requires_guest: true,
+    default_validity: "Válido durante a estadia",
+  },
+  hospede_romantico: {
+    label: "Hóspede Romântico",
+    title: "Hóspede Romântico",
+    subtitle: "Cortesia especial",
+    description: "Apresente na recepção.",
+    requires_guest: true,
+    default_validity: "Válido durante a estadia",
+  },
+};
+
+// ─── DOM ─────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const alertArea = $("alert-area");
+const sel = $("voucher-type");
+const desc = $("voucher-desc");
+const btnLookup = $("btn-lookup");
+const btnPrint = $("btn-print");
+const cardLookup = $("card-lookup");
+const cardPick = $("card-pick");
+const cardForm = $("card-form");
+const pickList = $("pick-list");
+const printerStatus = $("printer-status");
+
+// ─── Voucher type change ────────────────────────────────────
+sel.addEventListener("change", () => {
+  const t = VOUCHER_TYPES[sel.value];
+  if (!t) { desc.textContent = ""; cardLookup.style.display = "block"; cardForm.style.display = "block"; updatePrintButton(); return; }
+  desc.textContent = t.description;
+  $("f-validade").value = t.default_validity || "";
+  // Welcome drink não precisa de dados do hóspede
+  if (!t.requires_guest) {
+    cardLookup.style.display = "none";
+    cardForm.style.display = "none";
+    cardPick.style.display = "none";
+  } else {
+    cardLookup.style.display = "block";
+    cardForm.style.display = "block";
+  }
+  updatePrintButton();
+});
+
+function setAlert(msg, kind = "info", autohide = false) {
+  alertArea.innerHTML = msg ? `<div class="alert alert-${kind}">${msg}</div>` : "";
+  if (autohide) setTimeout(() => { alertArea.innerHTML = ""; }, 5000);
+}
+
+function updatePrintButton() {
+  const t = VOUCHER_TYPES[sel.value];
+  if (!t) { btnPrint.disabled = true; return; }
+  if (!t.requires_guest) { btnPrint.disabled = false; return; }
+  const ok = $("f-name").value.trim() && ($("f-room").value.trim() || $("f-reserva").value.trim());
+  btnPrint.disabled = !ok;
+}
+["f-name", "f-room", "f-reserva"].forEach((id) => $(id).addEventListener("input", updatePrintButton));
+
+// ─── Tabs ────────────────────────────────────────────────────
+document.querySelectorAll(".tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+    tab.classList.add("active");
+    const id = tab.dataset.tab;
+    $("tab-single").style.display = id === "single" ? "" : "none";
+    $("tab-batch").style.display = id === "batch" ? "" : "none";
+  });
+});
+
+// ─── Lookup reserva ──────────────────────────────────────────
+async function lookupReserva() {
+  const code = $("lookup-code").value.trim();
+  if (!code) { setAlert("Digite o código da reserva", "err", true); return; }
+  btnLookup.disabled = true;
+  btnLookup.textContent = "Buscando…";
+  setAlert("");
+  cardPick.style.display = "none";
+  pickList.innerHTML = "";
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/ficha-digital-lookup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ localizador: code }),
+    });
+    const j = await r.json();
+    if (!j.found) {
+      setAlert(`Reserva não encontrada (${j.reason || "sem detalhes"}). Preencha manualmente abaixo.`, "info", true);
+      $("f-reserva").value = code;
+      updatePrintButton();
+      return;
+    }
+    const hospedes = j.hospedes || [];
+    if (hospedes.length === 0) {
+      setAlert("Reserva encontrada mas sem hóspedes. Preencha manualmente.", "info", true);
+      $("f-reserva").value = code;
+      updatePrintButton();
+      return;
+    }
+    if (hospedes.length === 1) {
+      applyGuest(hospedes[0], code);
+      return;
+    }
+    // Múltiplos hóspedes — mostra lista pra escolher
+    cardPick.style.display = "block";
+    hospedes.forEach((h) => {
+      const btn = document.createElement("button");
+      btn.className = "btn btn-secondary";
+      btn.style.justifyContent = "flex-start";
+      btn.style.textAlign = "left";
+      btn.innerHTML = `<strong>${h.nome} ${h.sobrenome}</strong> · quarto ${h.uh || "—"}`;
+      btn.onclick = () => { applyGuest(h, code); cardPick.style.display = "none"; };
+      pickList.appendChild(btn);
+    });
+  } catch (e) {
+    setAlert("Erro de rede ao buscar reserva. Preencha manualmente.", "err", true);
+    $("f-reserva").value = code;
+    updatePrintButton();
+  } finally {
+    btnLookup.disabled = false;
+    btnLookup.textContent = "Buscar";
+  }
+}
+btnLookup.addEventListener("click", lookupReserva);
+$("lookup-code").addEventListener("keydown", (e) => { if (e.key === "Enter") lookupReserva(); });
+
+function applyGuest(h, code) {
+  const name = `${h.nome || ""} ${h.sobrenome || ""}`.trim().replace(/\s+/g, " ");
+  $("f-name").value = name;
+  $("f-room").value = h.uh || "";
+  $("f-reserva").value = code;
+  setAlert(`Hóspede preenchido: <strong>${name}</strong> · quarto ${h.uh || "—"}`, "ok", true);
+  updatePrintButton();
+}
+
+// ─── Print ──────────────────────────────────────────────────
+async function doPrint() {
+  const t = VOUCHER_TYPES[sel.value];
+  if (!t) return;
+  const payload = {
+    type: sel.value,
+    title: t.title,
+    subtitle: t.subtitle,
+    description: t.description,
+    name: $("f-name").value.trim() || null,
+    room: $("f-room").value.trim() || null,
+    reserva: $("f-reserva").value.trim() || null,
+    validade: $("f-validade").value.trim() || null,
+    obs: $("f-obs").value.trim() || null,
+    code: generateCode(sel.value),
+    issued_at: new Date().toISOString(),
+  };
+  btnPrint.disabled = true;
+  btnPrint.textContent = "Enviando para impressora…";
+  setAlert("");
+  try {
+    const r = await fetch(`${PRINTER_URL}/print`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) {
+      setAlert(`Erro ao imprimir: ${j.error || r.statusText}`, "err");
+      return;
+    }
+    setAlert(`✓ Voucher <strong>${payload.code}</strong> enviado para impressora.`, "ok", true);
+    // Reset campos do hóspede (mantém tipo e validade)
+    if (t.requires_guest) {
+      $("f-name").value = "";
+      $("f-room").value = "";
+      $("f-reserva").value = "";
+      $("f-obs").value = "";
+      $("lookup-code").value = "";
+    }
+    updatePrintButton();
+  } catch (e) {
+    setAlert(`Não consegui conectar à impressora local em ${PRINTER_URL}. O servidor está rodando?`, "err");
+  } finally {
+    btnPrint.disabled = false;
+    btnPrint.textContent = "🖨️ Imprimir voucher";
+    updatePrintButton();
+  }
+}
+btnPrint.addEventListener("click", doPrint);
+
+function generateCode(type) {
+  const prefix = {
+    welcome_drink: "WD",
+    gelato: "GEL",
+    drink_liberado: "DRK",
+    city_tour: "CTY",
+    passeio_pipa: "PIP",
+    passeio_litoral_norte: "LIT",
+    vila_cvc: "CVC",
+    hospede_raiz: "RAI",
+    hospede_romantico: "ROM",
+  }[type] || "VCH";
+  const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
+  return `${prefix}-${rand}`;
+}
+
+// ─── Printer health check ──────────────────────────────────
+async function pingPrinter() {
+  try {
+    const r = await fetch(`${PRINTER_URL}/health`, { signal: AbortSignal.timeout(2000) });
+    if (r.ok) {
+      const j = await r.json();
+      printerStatus.className = "footer-status online";
+      printerStatus.innerHTML = `✓ Impressora <strong>${j.printer || "POS80"}</strong> conectada`;
+      return;
+    }
+  } catch (e) {}
+  printerStatus.className = "footer-status offline";
+  printerStatus.innerHTML = `✕ Servidor local não respondendo em ${PRINTER_URL}. Inicie <code>print-server</code>`;
+}
+pingPrinter();
+setInterval(pingPrinter, 8000);
+</script>
+</body>
+</html>
