@@ -208,11 +208,16 @@ def build_voucher_html(payload: dict) -> str:
     orientation = payload.get("orientation", "horizontal")
     if orientation == "vertical":
         # Hóspede Raiz tem mais conteúdo (checkboxes + regulamento) e precisa
-        # de mais altura — senão estoura e gera 2ª página com lixo.
+        # de mais altura. Aumento aplicado APENAS no vertical (sem borda,
+        # carimbo grande). Horizontal mantém 132×72 que já estava OK.
         is_raiz_check = payload.get("type") == "hospede_raiz"
-        page_w, page_h = "72mm", ("128mm" if is_raiz_check else "120mm")
+        page_w, page_h = "72mm", ("145mm" if is_raiz_check else "130mm")
     else:
         page_w, page_h = "132mm", "72mm"
+
+    # Carimbo + borda só mudam no vertical. Horizontal mantém o desenho atual.
+    show_border = orientation == "horizontal"
+    carimbo_h = "30mm" if orientation == "vertical" else "18mm"
 
     # Logo Esmeralda (PNG) — base64 inline pra Chrome renderizar
     LOGO_PNG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo-esmeralda.png")
@@ -238,8 +243,7 @@ def build_voucher_html(payload: dict) -> str:
   }}
   .border-outer {{
     width: 100%; height: 100%;
-    border: 0.6mm solid #000;
-    border-radius: 3.5mm;
+    {("border: 0.6mm solid #000; border-radius: 3.5mm;" if show_border else "")}
     padding: 3mm 6mm;
     display: flex;
     flex-direction: column;
@@ -285,12 +289,12 @@ def build_voucher_html(payload: dict) -> str:
     margin-bottom: 0.5mm;
   }}
   /* Info já é coluna única em ambos os modos (acima) */
-  /* Espaço pro carimbo físico do atendente (área vazia ~18mm de altura) */
+  /* Espaço pro carimbo físico do atendente (vertical: 30mm, horizontal: 18mm) */
   .carimbo-area {{
-    height: 18mm;
+    height: {carimbo_h};
     border: 0.2mm dashed #aaa;
     border-radius: 1.5mm;
-    margin: 1.5mm 4mm;
+    margin: 2.5mm 4mm;
     display: flex;
     align-items: center;
     justify-content: center;
