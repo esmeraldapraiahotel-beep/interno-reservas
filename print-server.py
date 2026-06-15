@@ -187,6 +187,21 @@ def build_voucher_html(payload: dict) -> str:
         </div>
         """
 
+    # Hóspede Raiz: troca a descrição por 2 caixas de seleção (atendente
+    # marca à caneta qual opção o hóspede escolheu) + mini regulamento.
+    is_raiz = vtype == "hospede_raiz"
+    raiz_extra = ""
+    if is_raiz:
+        raiz_extra = """
+        <div class="choice-row">
+          <div class="choice"><span class="checkbox"></span> Gelato</div>
+          <div class="choice"><span class="checkbox"></span> Drink</div>
+        </div>
+        <div class="rules">
+          Vale um drink: Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores) ou um vale Gelato tamanho P. 1 por pessoa do apartamento por dia durante o período da sua hospedagem. Este voucher é intransferível e de uso único.
+        </div>
+        """
+
     # PDF gerado em "landscape" (132mm × 72mm). O CUPS+driver POS-80 vai
     # rotacionar e cortar pra caber nos 72mm de largura real do papel.
     return f"""<!doctype html>
@@ -243,6 +258,30 @@ def build_voucher_html(payload: dict) -> str:
     line-height: 1.35;
     margin: 1mm 5mm 2mm;
   }}
+  .choice-row {{
+    display: flex;
+    justify-content: center;
+    gap: 18mm;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 4mm;
+    font-weight: 900;
+    margin: 2mm 0 1.5mm;
+  }}
+  .choice {{ display: flex; align-items: center; gap: 2mm; }}
+  .checkbox {{
+    display: inline-block;
+    width: 4mm; height: 4mm;
+    border: 0.5mm solid #000;
+    border-radius: 0.6mm;
+  }}
+  .rules {{
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 2.2mm;
+    line-height: 1.32;
+    text-align: center;
+    margin: 1.5mm 4mm 1mm;
+    color: #000;
+  }}
   .hr {{ border-top: 0.3mm solid #000; margin: 1.5mm 0; }}
   .info {{
     display: flex;
@@ -295,7 +334,7 @@ def build_voucher_html(payload: dict) -> str:
     <div class="border-inner">
       <div class="icon">{icon_svg}</div>
       <div class="title">{title}</div>
-      {f'<div class="desc">{desc_line_1}{("<br>" + desc_line_2) if desc_line_2 else ""}</div>' if not is_welcome else welcome_extra}
+      {raiz_extra if is_raiz else (welcome_extra if is_welcome else f'<div class="desc">{desc_line_1}{("<br>" + desc_line_2) if desc_line_2 else ""}</div>')}
       {('<div class="hr"></div>' + info_block) if info_block else ''}
       <div class="code">{code}</div>
     </div>
