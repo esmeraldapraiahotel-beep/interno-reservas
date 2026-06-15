@@ -218,6 +218,8 @@ def build_voucher_html(payload: dict) -> str:
     # Carimbo + borda só mudam no vertical. Horizontal mantém o desenho atual.
     show_border = orientation == "horizontal"
     carimbo_h = "30mm" if orientation == "vertical" else "18mm"
+    # Vertical é estreito (72mm) — título precisa ser menor pra caber sem cortar.
+    title_size = "6mm" if orientation == "vertical" else "8mm"
 
     # Logo Esmeralda (PNG) — base64 inline pra Chrome renderizar
     LOGO_PNG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo-esmeralda.png")
@@ -240,9 +242,13 @@ def build_voucher_html(payload: dict) -> str:
     overflow: hidden;
     page-break-after: avoid;
     page-break-inside: avoid;
+    display: flex;
+    flex-direction: column;
   }}
   .border-outer {{
-    width: 100%; height: 100%;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
     {("border: 0.6mm solid #000; border-radius: 3.5mm;" if show_border else "")}
     padding: 3mm 6mm;
     display: flex;
@@ -330,10 +336,13 @@ def build_voucher_html(payload: dict) -> str:
     text-align: center;
     font-family: "Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive;
     font-style: italic;
-    font-size: 8mm;
-    line-height: 1;
+    font-size: {title_size};
+    line-height: 1.05;
     margin: 0 0 1mm;
     flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
   }}
   .desc {{
     text-align: center;
