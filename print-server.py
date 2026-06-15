@@ -236,7 +236,7 @@ def build_voucher_html(payload: dict) -> str:
                 font-family: Georgia, "Times New Roman", serif; overflow: hidden; }}
   .frame {{
     width: {page_w}; height: {page_h};
-    padding: {("5mm 2mm 30mm 2mm" if orientation == "vertical" else "2mm")};
+    padding: {("12mm 2mm 27mm 2mm" if orientation == "vertical" else "2mm")};
     background: #fff;
     overflow: hidden;
     page-break-after: avoid;
