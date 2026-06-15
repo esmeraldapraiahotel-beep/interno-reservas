@@ -229,10 +229,38 @@ def build_voucher_html(payload: dict) -> str:
     width: 100%; height: 100%;
     border: 0.3mm solid #000;
     border-radius: 2.5mm;
-    padding: 2mm 8mm;
+    padding: 3mm 6mm;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }}
+  /* Layout horizontal otimizado: título topo, depois 2 colunas (texto + código),
+     e info do hóspede no rodapé em 2 colunas. */
+  .top-row {{
+    display: flex;
+    gap: 5mm;
+    align-items: center;
+    flex: 1;
+    min-height: 0;
+  }}
+  .top-row .text-side {{ flex: 1.4; display: flex; flex-direction: column; justify-content: center; }}
+  .top-row .code-side {{
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    border: 0.4mm solid #000;
+    border-radius: 2mm;
+    padding: 2mm 1mm;
+    min-width: 38mm;
+  }}
+  .top-row .code-side .lbl-code {{
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 2.1mm;
+    text-transform: uppercase;
+    letter-spacing: 0.3mm;
+    font-weight: 700;
+    color: #444;
+    margin-bottom: 0.5mm;
   }}
   .icon {{ display: flex; justify-content: center; margin-bottom: 0.5mm; }}
   .icon svg {{ width: 9mm; height: 9mm; }}
@@ -240,34 +268,35 @@ def build_voucher_html(payload: dict) -> str:
     text-align: center;
     font-family: "Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive;
     font-style: italic;
-    font-size: 9mm;
+    font-size: 8mm;
     line-height: 1;
-    margin: 1mm 0 2mm;
+    margin: 0 0 1mm;
+    flex-shrink: 0;
   }}
   .desc {{
     text-align: center;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 2.5mm;
-    line-height: 1.3;
-    margin: 1mm 0 2mm;
+    font-size: 2.6mm;
+    line-height: 1.32;
+    margin: 0;
   }}
   .welcome-desc {{
     text-align: center;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 2.9mm;
+    font-size: 3mm;
     line-height: 1.35;
-    margin: 1mm 5mm 2mm;
+    margin: 0;
   }}
   .choice-row {{
     display: flex;
     justify-content: center;
-    gap: 18mm;
+    gap: 6mm;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 4mm;
+    font-size: 3.5mm;
     font-weight: 900;
-    margin: 2mm 0 1.5mm;
+    margin: 0 0 1.5mm;
   }}
-  .choice {{ display: flex; align-items: center; gap: 2mm; }}
+  .choice {{ display: flex; align-items: center; gap: 1.5mm; }}
   .checkbox {{
     display: inline-block;
     width: 4mm; height: 4mm;
@@ -276,10 +305,10 @@ def build_voucher_html(payload: dict) -> str:
   }}
   .rules {{
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 2.2mm;
-    line-height: 1.32;
+    font-size: 2.1mm;
+    line-height: 1.3;
     text-align: center;
-    margin: 1.5mm 4mm 1mm;
+    margin: 0;
     color: #000;
   }}
   .hr {{ border-top: 0.3mm solid #000; margin: 1.5mm 0; }}
@@ -288,8 +317,9 @@ def build_voucher_html(payload: dict) -> str:
     justify-content: space-between;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 2.7mm;
-    line-height: 1.45;
+    line-height: 1.4;
     overflow: hidden;
+    flex-shrink: 0;
   }}
   .info-col {{ flex: 1; min-width: 0; }}
   .info-col div {{ white-space: nowrap; overflow: visible; }}
@@ -297,26 +327,20 @@ def build_voucher_html(payload: dict) -> str:
   .lbl {{ font-weight: 900; }}
   .blank {{
     display: inline-block;
-    width: 26mm;
+    width: 22mm;
     border-bottom: 0.4mm solid #000;
-    height: 3.5mm;
+    height: 3.2mm;
     vertical-align: middle;
     margin-left: 1mm;
-  }}
-  .code-label {{
-    text-align: center;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 2.5mm;
-    margin-top: 1mm;
   }}
   .code {{
     text-align: center;
     font-family: Arial, Helvetica, sans-serif;
     font-weight: 900;
-    font-size: 7mm;
-    letter-spacing: 0.4mm;
+    font-size: 7.5mm;
+    letter-spacing: 0.5mm;
     line-height: 1;
-    margin: 0.5mm 0 1mm;
+    margin: 0;
   }}
   .footer {{
     text-align: center;
@@ -333,9 +357,17 @@ def build_voucher_html(payload: dict) -> str:
   <div class="border-outer">
     <div class="border-inner">
       <div class="title">{title}</div>
-      {raiz_extra if is_raiz else (welcome_extra if is_welcome else f'<div class="desc">{desc_line_1}{("<br>" + desc_line_2) if desc_line_2 else ""}</div>')}
+      <div class="hr"></div>
+      <div class="top-row">
+        <div class="text-side">
+          {raiz_extra if is_raiz else (welcome_extra if is_welcome else f'<div class="desc">{desc_line_1}{("<br>" + desc_line_2) if desc_line_2 else ""}</div>')}
+        </div>
+        <div class="code-side">
+          <div class="lbl-code">Código</div>
+          <div class="code">{code}</div>
+        </div>
+      </div>
       {('<div class="hr"></div>' + info_block) if info_block else ''}
-      <div class="code">{code}</div>
     </div>
   </div>
 </div>
