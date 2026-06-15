@@ -219,7 +219,7 @@ def build_voucher_html(payload: dict) -> str:
     show_border = orientation == "horizontal"
     carimbo_h = "30mm" if orientation == "vertical" else "18mm"
     # Vertical é estreito (72mm) — título precisa ser menor pra caber sem cortar.
-    title_size = "6mm" if orientation == "vertical" else "8mm"
+    title_size = "7.5mm" if orientation == "vertical" else "9mm"
 
     # Logo Esmeralda (PNG) — base64 inline pra Chrome renderizar
     LOGO_PNG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo-esmeralda.png")
@@ -337,8 +337,8 @@ def build_voucher_html(payload: dict) -> str:
     font-family: "Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive;
     font-style: italic;
     font-size: {title_size};
-    line-height: 1.5;       /* extra leading pra não cortar topo dos glifos */
-    padding-top: 2mm;        /* respiro acima */
+    line-height: 1.8;       /* leading bem generoso pra não cortar topo dos glifos */
+    padding-top: 6mm;        /* respiro extra acima */
     margin: 0 0 1mm;
     flex-shrink: 0;
   }}
