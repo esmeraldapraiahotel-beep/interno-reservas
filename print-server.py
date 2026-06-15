@@ -184,16 +184,19 @@ def build_voucher_html(payload: dict) -> str:
         </div>
         """
 
-    # Hóspede Raiz: troca a descrição por 2 caixas de seleção (atendente
-    # marca à caneta qual opção o hóspede escolheu) + mini regulamento.
+    # Hóspede Raiz: checkboxes (Gelato/Drink) ANTES do código (atendente marca
+    # à caneta) e regulamento DEPOIS, no rodapé. Separados em 2 blocos.
     is_raiz = vtype == "hospede_raiz"
+    raiz_choices = ""
     raiz_extra = ""
     if is_raiz:
-        raiz_extra = """
+        raiz_choices = """
         <div class="choice-row">
           <div class="choice"><span class="checkbox"></span> Gelato</div>
           <div class="choice"><span class="checkbox"></span> Drink</div>
         </div>
+        """
+        raiz_extra = """
         <div class="rules">
           Vale um drink: Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores) ou um vale Gelato tamanho P. 1 por pessoa do apartamento por dia durante o período da sua hospedagem. Este voucher é intransferível e de uso único.
         </div>
@@ -233,14 +236,17 @@ def build_voucher_html(payload: dict) -> str:
   .border-outer {{
     width: 100%; height: 100%;
     border: 0.6mm solid #000;
-    border-radius: 4mm;
-    padding: 1mm;
+    border-radius: 3.5mm;
+    padding: 3mm 6mm;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }}
+  /* border-inner removida — a borda dupla causava artefatos de raster
+     (lixo de bytes interpretados como texto) na borda direita.
+     Mantemos só a externa. */
   .border-inner {{
     width: 100%; height: 100%;
-    border: 0.3mm solid #000;
-    border-radius: 2.5mm;
-    padding: 3mm 6mm;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -280,6 +286,22 @@ def build_voucher_html(payload: dict) -> str:
     ".info { flex-direction: column; gap: 0; align-items: center; }"
     if orientation == "vertical" else ""
   )}
+  /* Espaço pro carimbo físico do atendente (área vazia ~18mm de altura) */
+  .carimbo-area {{
+    height: 18mm;
+    border: 0.2mm dashed #aaa;
+    border-radius: 1.5mm;
+    margin: 1.5mm 4mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }}
+  .carimbo-hint {{
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 2mm;
+    color: #999;
+    letter-spacing: 0.2mm;
+  }}
   /* Logo Esmeralda APÓS a moldura — assinatura do hotel */
   .logo-hotel {{
     text-align: center;
@@ -396,14 +418,18 @@ def build_voucher_html(payload: dict) -> str:
     <div class="border-inner">
       <div class="title">{title}</div>
       <div class="hr"></div>
-      {info_block}
-      <div class="code-wrap" style="margin-top:1.5mm">
+      {raiz_choices}
+      <div class="code-wrap">
         <div class="code-side">
           <div class="lbl-code">Código</div>
           <div class="code">{code}</div>
         </div>
       </div>
-      <div class="hr" style="margin-top:1.5mm"></div>
+      {info_block}
+      <div class="carimbo-area">
+        <span class="carimbo-hint">Espaço para carimbo</span>
+      </div>
+      <div class="hr"></div>
       <div class="text-side">
         {raiz_extra if is_raiz else (welcome_extra if is_welcome else f'<div class="desc">{desc_line_1}{("<br>" + desc_line_2) if desc_line_2 else ""}</div>')}
       </div>
