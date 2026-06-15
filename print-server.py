@@ -284,11 +284,7 @@ def build_voucher_html(payload: dict) -> str:
     color: #444;
     margin-bottom: 0.5mm;
   }}
-  /* Vertical: info-col em coluna única (Hóspede / Quarto / Reserva / Validade) */
-  {(
-    ".info { flex-direction: column; gap: 0; align-items: center; }"
-    if orientation == "vertical" else ""
-  )}
+  /* Info já é coluna única em ambos os modos (acima) */
   /* Espaço pro carimbo físico do atendente (área vazia ~18mm de altura) */
   .carimbo-area {{
     height: 18mm;
@@ -376,14 +372,15 @@ def build_voucher_html(payload: dict) -> str:
   .hr {{ border-top: 0.3mm solid #000; margin: 1.5mm 0; }}
   .info {{
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 2.7mm;
-    line-height: 1.45;
+    line-height: 1.5;
     overflow: hidden;
     flex-shrink: 0;
     text-align: center;
-    gap: 8mm;
+    margin-top: 4mm;
   }}
   .info-col {{ min-width: 0; }}
   .info-col div {{ white-space: nowrap; overflow: visible; }}
