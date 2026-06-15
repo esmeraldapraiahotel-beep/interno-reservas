@@ -2,6 +2,12 @@
 # Instalador one-click pra Windows (PowerShell 5.1+ compativel)
 $ErrorActionPreference = "Stop"
 
+# Forca TLS 1.2 (Windows 10 antigo usa TLS 1.0 por padrao, varios sites
+# rejeitam — incluindo sumatrapdfreader.org)
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11
+} catch { }
+
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $ProjectDir
 
@@ -23,13 +29,19 @@ function Find-RealPython {
     if ($cmd1) { $candidates += $cmd1.Source }
     if ($cmd2) { $candidates += $cmd2.Source }
     if ($cmd3) { $candidates += $cmd3.Source }
-    # Tambem checa instalacoes padrao
-    $candidates += "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe"
-    $candidates += "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe"
-    $candidates += "$env:LOCALAPPDATA\Programs\Python\Python310\python.exe"
-    $candidates += "C:\Python312\python.exe"
-    $candidates += "C:\Python311\python.exe"
-    $candidates += "C:\Python310\python.exe"
+    # Tambem checa instalacoes padrao — qualquer Python3* (futuro-prova)
+    $globPaths = @(
+        "$env:LOCALAPPDATA\Programs\Python\Python3*\python.exe",
+        "C:\Python3*\python.exe",
+        "C:\Program Files\Python3*\python.exe"
+    )
+    foreach ($g in $globPaths) {
+        try {
+            Get-ChildItem -Path $g -ErrorAction SilentlyContinue | ForEach-Object {
+                $candidates += $_.FullName
+            }
+        } catch { }
+    }
 
     foreach ($p in $candidates) {
         if (-not $p) { continue }
@@ -53,16 +65,18 @@ if (-not $pythonExe) {
     Write-Host "  Python nao encontrado. Tentando instalar via winget..." -ForegroundColor Yellow
     $winget = Get-Command winget -ErrorAction SilentlyContinue
     if ($winget) {
+        $prev = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
         try {
-            & winget install --id Python.Python.3.12 -e --accept-source-agreements --accept-package-agreements --silent
+            & winget install --id Python.Python.3.12 -e --accept-source-agreements --accept-package-agreements --silent 2>&1 | Out-Host
             Write-Host "  Python instalado. Atualizando PATH..."
-            # Recarrega o PATH da sessao
             $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
             Start-Sleep -Seconds 3
             $pythonExe = Find-RealPython
         } catch {
-            Write-Host "  Falha ao instalar via winget." -ForegroundColor Red
+            Write-Host "  Falha ao instalar via winget: $_" -ForegroundColor Red
         }
+        $ErrorActionPreference = $prev
     }
 }
 
@@ -131,7 +145,13 @@ if (-not (Test-Path $SumatraPath)) {
 
 # --- 4. Procura impressora ---------------------------------------
 Write-Host "[4/8] Procurando impressora termica..."
-$printers = Get-Printer | Where-Object { $_.Name -match "POS|GoldenSky|Thermal|80" }
+# Get-Printer requer o modulo PrintManagement (vem no Windows 8+)
+if (-not (Get-Command Get-Printer -ErrorAction SilentlyContinue)) {
+    Write-Host "  ERRO: Get-Printer nao disponivel. Windows muito antigo?" -ForegroundColor Red
+    Read-Host "Pressione ENTER para sair"
+    exit 1
+}
+$printers = Get-Printer | Where-Object { $_.Name -match "POS|GoldenSky|Thermal|80" -and $_.Name -notmatch "Microsoft|XPS|PDF$" }
 
 if (-not $printers) {
     $InstallerInRepo = Join-Path $ProjectDir "POS80Setup.exe"
@@ -147,10 +167,17 @@ if (-not $printers) {
     if ($installer) {
         Write-Host "  Driver nao detectado - abrindo instalador..." -ForegroundColor Yellow
         Write-Host "  Siga os passos do instalador (vai pedir confirmacao de administrador)."
-        Start-Process -FilePath $installer -Verb RunAs -Wait
+        try {
+            Start-Process -FilePath $installer -Verb RunAs -Wait
+        } catch {
+            Write-Host "  AVISO: instalador cancelado ou bloqueado: $_" -ForegroundColor Yellow
+            Write-Host "  Rode '$installer' manualmente como administrador e tente de novo."
+            Read-Host "Pressione ENTER para sair"
+            exit 1
+        }
         Write-Host "  Instalador fechado. Verificando..."
         Start-Sleep -Seconds 2
-        $printers = Get-Printer | Where-Object { $_.Name -match "POS|GoldenSky|Thermal|80" }
+        $printers = Get-Printer | Where-Object { $_.Name -match "POS|GoldenSky|Thermal|80" -and $_.Name -notmatch "Microsoft|XPS|PDF$" }
     } else {
         Write-Host "  ERRO: instalador da impressora nao achado." -ForegroundColor Red
         Write-Host "  Esperava POS80Setup.exe nesta pasta ou POS80Setup_20190329.exe em Downloads."
@@ -190,21 +217,42 @@ Write-Host "  OK Atalho criado em $StartupDir"
 # --- 7. Inicia o servidor ----------------------------------------
 Write-Host "[7/8] Iniciando servidor..."
 $ScriptPath = Join-Path $ProjectDir "print-server.py"
+if (-not (Test-Path $ScriptPath)) {
+    Write-Host "  ERRO: print-server.py nao achado em $ScriptPath" -ForegroundColor Red
+    Write-Host "  O projeto baixou incompleto? Tente rodar instalar-windows.bat de novo."
+    Read-Host "Pressione ENTER para sair"
+    exit 1
+}
+# Mata qualquer servidor antigo na porta 9876
+try {
+    Get-NetTCPConnection -LocalPort 9876 -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique |
+        ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }
+} catch { }
+
 Start-Process -FilePath $python.Source `
     -ArgumentList ('"' + $ScriptPath + '"') `
     -WorkingDirectory $ProjectDir `
     -WindowStyle Minimized
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 2
 
-# --- 8. Health check ---------------------------------------------
+# --- 8. Health check (com retry, PC lento demora) ----------------
 Write-Host "[8/8] Testando..."
-try {
-    $resp = Invoke-WebRequest -Uri "http://localhost:9876/health" -UseBasicParsing -TimeoutSec 5
-    if ($resp.StatusCode -eq 200) {
-        Write-Host "  OK Servidor respondendo em http://localhost:9876"
-    }
-} catch {
-    Write-Host "  AVISO: servidor nao respondeu ainda. Tente em alguns segundos." -ForegroundColor Yellow
+$ok = $false
+for ($i = 1; $i -le 10; $i++) {
+    try {
+        $resp = Invoke-WebRequest -Uri "http://localhost:9876/health" -UseBasicParsing -TimeoutSec 3
+        if ($resp.StatusCode -eq 200) {
+            $ok = $true
+            break
+        }
+    } catch { }
+    Start-Sleep -Seconds 1
+}
+if ($ok) {
+    Write-Host "  OK Servidor respondendo em http://localhost:9876"
+} else {
+    Write-Host "  AVISO: servidor nao respondeu em 10s. Vai tentar de novo na proxima vez." -ForegroundColor Yellow
 }
 
 Write-Host ""
