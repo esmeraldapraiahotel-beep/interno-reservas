@@ -240,9 +240,9 @@ def build_voucher_html(payload: dict) -> str:
     text-align: center;
     font-family: "Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive;
     font-style: italic;
-    font-size: 7.5mm;
-    line-height: 0.95;
-    margin: 0;
+    font-size: 9mm;
+    line-height: 1;
+    margin: 1mm 0 2mm;
   }}
   .desc {{
     text-align: center;
@@ -332,7 +332,6 @@ def build_voucher_html(payload: dict) -> str:
 <div class="frame">
   <div class="border-outer">
     <div class="border-inner">
-      <div class="icon">{icon_svg}</div>
       <div class="title">{title}</div>
       {raiz_extra if is_raiz else (welcome_extra if is_welcome else f'<div class="desc">{desc_line_1}{("<br>" + desc_line_2) if desc_line_2 else ""}</div>')}
       {('<div class="hr"></div>' + info_block) if info_block else ''}
