@@ -256,8 +256,8 @@
         <div class="field">
           <label>Orientação</label>
           <select id="orientation">
+            <option value="vertical" selected>Vertical (72mm — padrão)</option>
             <option value="horizontal">Horizontal (132 × 72mm)</option>
-            <option value="vertical">Vertical (72 × 95mm — economiza papel)</option>
           </select>
         </div>
       </div>
@@ -736,7 +736,7 @@ async function doPrint() {
       await printOne({
         type: sel.value, title: t.title, subtitle: t.subtitle, description: t.description,
         code: generateCode(sel.value), issued_at: new Date().toISOString(),
-        orientation: $("orientation").value || "horizontal",
+        orientation: $("orientation").value || "vertical",
       });
       setAlert("✓ Voucher Welcome Drink impresso.", "ok", true);
     } catch (e) {
@@ -775,7 +775,7 @@ async function doPrint() {
         code: generateCode(sel.value),
         issued_at: new Date().toISOString(),
         extra_label: t.extra_field?.label || "Validade",
-        orientation: $("orientation").value || "horizontal",
+        orientation: $("orientation").value || "vertical",
       };
       try {
         await printOne(payload);

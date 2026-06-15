@@ -205,7 +205,7 @@ def build_voucher_html(payload: dict) -> str:
     # Orientação: 'horizontal' (default, 132×72mm) ou 'vertical' (72×120mm,
     # economiza ~9% de papel mas usa formato com aspect ratio compatível
     # com o filter POS-80 (evita lixo de raster nas bordas).
-    orientation = payload.get("orientation", "horizontal")
+    orientation = payload.get("orientation", "vertical")
     is_raiz_check = payload.get("type") == "hospede_raiz"
     if orientation == "vertical":
         # Hóspede Raiz tem mais conteúdo e o topo cortava — mais margem nele.
