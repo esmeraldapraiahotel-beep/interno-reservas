@@ -143,17 +143,36 @@
     margin-bottom: 6px;
   }
   .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .footer-status {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    background: var(--ink);
-    color: #fff;
-    padding: 10px 16px;
+
+  /* Status da impressora — pill inline igual o padrão do dashboards.esmeralda */
+  .printer-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     font-size: 12px;
-    text-align: center;
+    font-weight: 600;
+    color: var(--ink-soft);
   }
-  .footer-status.online { background: var(--ok); }
-  .footer-status.offline { background: var(--danger); }
+  .printer-pill .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--gray-400);
+    flex-shrink: 0;
+  }
+  .printer-pill .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    background: rgba(174,131,81,0.15);
+    color: #7D5E44;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .printer-pill.online { color: #16a34a; }
+  .printer-pill.online .dot { background: #22c55e; }
+  .printer-pill.offline { color: #dc2626; }
+  .printer-pill.offline .dot { background: #ef4444; }
   .guest-row {
     display: flex;
     align-items: center;
@@ -207,9 +226,12 @@
 
   <div id="alert-area"></div>
 
-  <div style="margin-bottom: 16px">
-    <button class="tab active" data-tab="single">Emitir voucher</button>
-    <button class="tab" data-tab="batch">Upload de planilha</button>
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+    <div>
+      <button class="tab active" data-tab="single">Emitir voucher</button>
+      <button class="tab" data-tab="batch">Upload de planilha</button>
+    </div>
+    <div id="printer-status" class="printer-pill" title="Status da impressora local"></div>
   </div>
 
   <div id="tab-single">
@@ -306,8 +328,6 @@
     </div>
   </div>
 </div>
-
-<div class="footer-status" id="printer-status">Verificando impressora local…</div>
 
 <script>
 const PRINTER_URL = "http://localhost:9876";
@@ -776,13 +796,13 @@ async function pingPrinter() {
     const r = await fetch(`${PRINTER_URL}/health`, { signal: AbortSignal.timeout(2000) });
     if (r.ok) {
       const j = await r.json();
-      printerStatus.className = "footer-status online";
-      printerStatus.innerHTML = `✓ Impressora <strong>${j.printer || "POS80"}</strong> conectada`;
+      printerStatus.className = "printer-pill online";
+      printerStatus.innerHTML = `<span class="dot"></span> Impressora ${j.printer || "POS80"} conectada`;
       return;
     }
   } catch (e) {}
-  printerStatus.className = "footer-status offline";
-  printerStatus.innerHTML = `✕ Servidor local não respondendo em ${PRINTER_URL}. Inicie <code>print-server</code>`;
+  printerStatus.className = "printer-pill offline";
+  printerStatus.innerHTML = `<span class="dot"></span> Servidor local offline`;
 }
 pingPrinter();
 setInterval(pingPrinter, 8000);
