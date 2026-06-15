@@ -209,13 +209,13 @@ def build_voucher_html(payload: dict) -> str:
     is_raiz_check = payload.get("type") == "hospede_raiz"
     if orientation == "vertical":
         # Hóspede Raiz tem mais conteúdo e o topo cortava — mais margem nele.
-        page_w, page_h = "72mm", ("195mm" if is_raiz_check else "170mm")
+        page_w, page_h = "72mm", ("210mm" if is_raiz_check else "170mm")
     else:
         page_w, page_h = "132mm", "72mm"
 
     # Padding do frame (vertical) — Raiz ganha 38mm de topo, comum 28mm.
     if orientation == "vertical":
-        frame_pad = "38mm 2mm 12mm 2mm" if is_raiz_check else "28mm 2mm 12mm 2mm"
+        frame_pad = "55mm 2mm 12mm 2mm" if is_raiz_check else "28mm 2mm 12mm 2mm"
     else:
         frame_pad = "2mm"
 
