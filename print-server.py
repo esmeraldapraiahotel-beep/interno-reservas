@@ -156,9 +156,7 @@ def build_voucher_html(payload: dict) -> str:
     icon_svg = ICONS_BY_TYPE.get(vtype, ICONS_BY_TYPE.get("gelato"))
     footer = FOOTER_BY_TYPE.get(vtype, "ESMERALDA PRAIA HOTEL")
 
-    # Linha de info: 2 colunas. Welcome drink não tem dados de hóspede.
-    # extra_label define o rótulo da última linha — pode ser "Validade",
-    # "Data do passeio" (city/pipa/litoral) ou "Data do jantar" (romântico).
+    # Linha de info CENTRALIZADA: 2 colunas que ficam juntas no centro.
     extra_label = payload.get("extra_label") or "Válido até"
     info_block = ""
     if vtype != "welcome_drink":
@@ -173,7 +171,6 @@ def build_voucher_html(payload: dict) -> str:
             <div><span class='lbl'>{extra_label}:</span> {validade}</div>
           </div>
         </div>
-        <div class="hr"></div>
         """
 
     # Welcome drink: sem dados pessoais, descrição mais longa
@@ -202,13 +199,21 @@ def build_voucher_html(payload: dict) -> str:
         </div>
         """
 
-    # Orientação: 'horizontal' (default, 132×72mm) ou 'vertical' (72×95mm,
-    # economiza ~28% de papel). User escolhe na UI por tipo de voucher.
+    # Orientação: 'horizontal' (default, 132×72mm) ou 'vertical' (72×120mm,
+    # economiza ~9% de papel mas usa formato com aspect ratio compatível
+    # com o filter POS-80 (evita lixo de raster nas bordas).
     orientation = payload.get("orientation", "horizontal")
     if orientation == "vertical":
-        page_w, page_h = "72mm", "95mm"
+        page_w, page_h = "72mm", "120mm"
     else:
         page_w, page_h = "132mm", "72mm"
+
+    # Logo Esmeralda (PNG) — base64 inline pra Chrome renderizar
+    LOGO_PNG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo-esmeralda.png")
+    logo_esmeralda_b64 = ""
+    if os.path.exists(LOGO_PNG_PATH):
+        with open(LOGO_PNG_PATH, "rb") as f:
+            logo_esmeralda_b64 = base64.b64encode(f.read()).decode("ascii")
 
     return f"""<!doctype html>
 <html><head><meta charset="utf-8">
@@ -252,16 +257,16 @@ def build_voucher_html(payload: dict) -> str:
     flex-direction: {("column" if orientation == "vertical" else "row")};
   }}
   .top-row .text-side {{ flex: {("0 0 auto" if orientation == "vertical" else "1.4")}; display: flex; flex-direction: column; justify-content: center; width: 100%; }}
-  .top-row .code-side {{
-    flex: {("0 0 auto" if orientation == "vertical" else "1")};
-    display: flex; flex-direction: column;
+  .code-side {{
+    display: inline-flex; flex-direction: column;
     align-items: center; justify-content: center;
     border: 0.4mm solid #000;
     border-radius: 2mm;
-    padding: 2mm 2mm;
-    {("min-width: 60mm;" if orientation == "vertical" else "min-width: 38mm;")}
+    padding: 2mm 6mm;
+    margin: 0 auto;
   }}
-  .top-row .code-side .lbl-code {{
+  .code-wrap {{ text-align: center; }}
+  .lbl-code {{
     font-family: Arial, Helvetica, sans-serif;
     font-size: 2.1mm;
     text-transform: uppercase;
@@ -272,9 +277,28 @@ def build_voucher_html(payload: dict) -> str:
   }}
   /* Vertical: info-col em coluna única (Hóspede / Quarto / Reserva / Validade) */
   {(
-    ".info { flex-direction: column; gap: 0.5mm; } .info-col:last-child { padding-left: 0; }"
+    ".info { flex-direction: column; gap: 0; align-items: center; }"
     if orientation == "vertical" else ""
   )}
+  /* Logo Esmeralda APÓS a moldura — assinatura do hotel */
+  .logo-hotel {{
+    text-align: center;
+    margin-top: 2mm;
+    padding-top: 1mm;
+  }}
+  .logo-hotel img {{
+    width: 12mm;
+    height: auto;
+    display: block;
+    margin: 0 auto 0.5mm;
+  }}
+  .logo-hotel .hotel-name {{
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 3mm;
+    font-weight: 700;
+    letter-spacing: 0.4mm;
+    color: #000;
+  }}
   .icon {{ display: flex; justify-content: center; margin-bottom: 0.5mm; }}
   .icon svg {{ width: 9mm; height: 9mm; }}
   .title {{
@@ -327,16 +351,17 @@ def build_voucher_html(payload: dict) -> str:
   .hr {{ border-top: 0.3mm solid #000; margin: 1.5mm 0; }}
   .info {{
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 2.7mm;
-    line-height: 1.4;
+    line-height: 1.45;
     overflow: hidden;
     flex-shrink: 0;
+    text-align: center;
+    gap: 8mm;
   }}
-  .info-col {{ flex: 1; min-width: 0; }}
+  .info-col {{ min-width: 0; }}
   .info-col div {{ white-space: nowrap; overflow: visible; }}
-  .info-col:last-child {{ text-align: left; padding-left: 3mm; }}
   .lbl {{ font-weight: 900; }}
   .blank {{
     display: inline-block;
@@ -371,17 +396,22 @@ def build_voucher_html(payload: dict) -> str:
     <div class="border-inner">
       <div class="title">{title}</div>
       <div class="hr"></div>
-      <div class="top-row">
-        <div class="text-side">
-          {raiz_extra if is_raiz else (welcome_extra if is_welcome else f'<div class="desc">{desc_line_1}{("<br>" + desc_line_2) if desc_line_2 else ""}</div>')}
-        </div>
+      {info_block}
+      <div class="code-wrap" style="margin-top:1.5mm">
         <div class="code-side">
           <div class="lbl-code">Código</div>
           <div class="code">{code}</div>
         </div>
       </div>
-      {('<div class="hr"></div>' + info_block) if info_block else ''}
+      <div class="hr" style="margin-top:1.5mm"></div>
+      <div class="text-side">
+        {raiz_extra if is_raiz else (welcome_extra if is_welcome else f'<div class="desc">{desc_line_1}{("<br>" + desc_line_2) if desc_line_2 else ""}</div>')}
+      </div>
     </div>
+  </div>
+  <div class="logo-hotel">
+    {f'<img src="data:image/png;base64,{logo_esmeralda_b64}" alt="">' if logo_esmeralda_b64 else ""}
+    <div class="hotel-name">Esmeralda Praia Hotel</div>
   </div>
 </div>
 </body></html>
