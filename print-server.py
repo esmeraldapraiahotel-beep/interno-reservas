@@ -102,30 +102,35 @@ def build_voucher_html(payload: dict) -> str:
     description_lines = (payload.get("description") or "").split(". ", 1)
     desc_line_1 = description_lines[0]
     desc_line_2 = description_lines[1] if len(description_lines) > 1 else ""
-    name = payload.get("name") or ""
-    room = payload.get("room") or ""
-    reserva = payload.get("reserva") or ""
-    validade = payload.get("validade") or ""
+    # Campos vazios viram linha pra preencher à caneta no balcão.
+    # Underscore HTML não renderiza linha contínua, então uso uma borda CSS.
+    BLANK_LINE = '<span class="blank"></span>'
+    def _v(x):
+        return x if (x and str(x).strip()) else BLANK_LINE
+    name = _v(payload.get("name"))
+    room = _v(payload.get("room"))
+    reserva = _v(payload.get("reserva"))
+    validade = _v(payload.get("validade"))
 
     icon_svg = ICONS_BY_TYPE.get(vtype, ICONS_BY_TYPE.get("gelato"))
     footer = FOOTER_BY_TYPE.get(vtype, "ESMERALDA PRAIA HOTEL")
 
-    # Linha de info: 2 colunas (esquerda: hóspede + reserva, direita: quarto + validade)
-    left_lines = []
-    right_lines = []
-    if name: left_lines.append(f"<div><span class='lbl'>Hóspede:</span> {name}</div>")
-    if reserva: left_lines.append(f"<div><span class='lbl'>Reserva:</span> {reserva}</div>")
-    if room: right_lines.append(f"<div><span class='lbl'>Quarto:</span> {room}</div>")
-    if validade: right_lines.append(f"<div><span class='lbl'>Válido até:</span> {validade}</div>")
-    left_html = "\n".join(left_lines)
-    right_html = "\n".join(right_lines)
-
+    # Linha de info: 2 colunas. Welcome drink não tem dados de hóspede.
+    # extra_label define o rótulo da última linha — pode ser "Validade",
+    # "Data do passeio" (city/pipa/litoral) ou "Data do jantar" (romântico).
+    extra_label = payload.get("extra_label") or "Válido até"
     info_block = ""
-    if name or room or reserva or validade:
+    if vtype != "welcome_drink":
         info_block = f"""
         <div class="info">
-          <div class="info-col">{left_html}</div>
-          <div class="info-col">{right_html}</div>
+          <div class="info-col">
+            <div><span class='lbl'>Hóspede:</span> {name}</div>
+            <div><span class='lbl'>Reserva:</span> {reserva}</div>
+          </div>
+          <div class="info-col">
+            <div><span class='lbl'>Quarto:</span> {room}</div>
+            <div><span class='lbl'>{extra_label}:</span> {validade}</div>
+          </div>
         </div>
         <div class="hr"></div>
         """
@@ -168,9 +173,10 @@ def build_voucher_html(payload: dict) -> str:
     width: 100%; height: 100%;
     border: 0.3mm solid #000;
     border-radius: 2.5mm;
-    padding: 2mm 5mm;
+    padding: 2mm 8mm;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }}
   .icon {{ display: flex; justify-content: center; margin-bottom: 0.5mm; }}
   .icon svg {{ width: 9mm; height: 9mm; }}
@@ -201,12 +207,22 @@ def build_voucher_html(payload: dict) -> str:
     display: flex;
     justify-content: space-between;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 2.9mm;
-    line-height: 1.5;
+    font-size: 2.7mm;
+    line-height: 1.45;
+    overflow: hidden;
   }}
-  .info-col {{ flex: 1; }}
+  .info-col {{ flex: 1; min-width: 0; }}
+  .info-col div {{ white-space: nowrap; overflow: visible; }}
   .info-col:last-child {{ text-align: left; padding-left: 3mm; }}
   .lbl {{ font-weight: 900; }}
+  .blank {{
+    display: inline-block;
+    width: 26mm;
+    border-bottom: 0.4mm solid #000;
+    height: 3.5mm;
+    vertical-align: middle;
+    margin-left: 1mm;
+  }}
   .code-label {{
     text-align: center;
     font-family: Arial, Helvetica, sans-serif;
