@@ -14,18 +14,73 @@ Write-Host ""
 
 # --- 1. Python ----------------------------------------------------
 Write-Host "[1/8] Verificando Python..."
-$python = Get-Command python -ErrorAction SilentlyContinue
-if (-not $python) {
-    $python = Get-Command python3 -ErrorAction SilentlyContinue
+
+function Find-RealPython {
+    $candidates = @()
+    $cmd1 = Get-Command python  -ErrorAction SilentlyContinue
+    $cmd2 = Get-Command python3 -ErrorAction SilentlyContinue
+    $cmd3 = Get-Command py      -ErrorAction SilentlyContinue
+    if ($cmd1) { $candidates += $cmd1.Source }
+    if ($cmd2) { $candidates += $cmd2.Source }
+    if ($cmd3) { $candidates += $cmd3.Source }
+    # Tambem checa instalacoes padrao
+    $candidates += "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe"
+    $candidates += "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe"
+    $candidates += "$env:LOCALAPPDATA\Programs\Python\Python310\python.exe"
+    $candidates += "C:\Python312\python.exe"
+    $candidates += "C:\Python311\python.exe"
+    $candidates += "C:\Python310\python.exe"
+
+    foreach ($p in $candidates) {
+        if (-not $p) { continue }
+        # Pula o stub falso do Windows Store
+        if ($p -like "*WindowsApps*") { continue }
+        if (-not (Test-Path $p)) { continue }
+        # Testa se realmente roda
+        try {
+            $v = & $p --version 2>&1
+            if ($LASTEXITCODE -eq 0 -and $v -match "Python") {
+                return $p
+            }
+        } catch { }
+    }
+    return $null
 }
-if (-not $python) {
-    Write-Host "  ERRO: Python nao encontrado." -ForegroundColor Red
-    Write-Host "  Baixe e instale em: https://www.python.org/downloads/"
-    Write-Host "  IMPORTANTE: marque 'Add Python to PATH' durante a instalacao."
+
+$pythonExe = Find-RealPython
+
+if (-not $pythonExe) {
+    Write-Host "  Python nao encontrado. Tentando instalar via winget..." -ForegroundColor Yellow
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    if ($winget) {
+        try {
+            & winget install --id Python.Python.3.12 -e --accept-source-agreements --accept-package-agreements --silent
+            Write-Host "  Python instalado. Atualizando PATH..."
+            # Recarrega o PATH da sessao
+            $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
+            Start-Sleep -Seconds 3
+            $pythonExe = Find-RealPython
+        } catch {
+            Write-Host "  Falha ao instalar via winget." -ForegroundColor Red
+        }
+    }
+}
+
+if (-not $pythonExe) {
+    Write-Host "  ERRO: Python nao encontrado e nao consegui instalar automatico." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Solucao manual:"
+    Write-Host "  1. Abra: https://www.python.org/downloads/"
+    Write-Host "  2. Baixe a versao mais recente"
+    Write-Host "  3. IMPORTANTE: marque 'Add Python to PATH' na primeira tela"
+    Write-Host "  4. Apos instalar, rode este setup novamente"
+    Start-Process "https://www.python.org/downloads/"
     Read-Host "Pressione ENTER para sair"
     exit 1
 }
-Write-Host "  OK Python: $($python.Source)"
+
+$python = [PSCustomObject]@{ Source = $pythonExe }
+Write-Host "  OK Python: $pythonExe"
 
 # --- 2. Dependencias Python --------------------------------------
 Write-Host "[2/8] Instalando bibliotecas Python (Pillow, qrcode)..."
