@@ -207,7 +207,10 @@ def build_voucher_html(payload: dict) -> str:
     # com o filter POS-80 (evita lixo de raster nas bordas).
     orientation = payload.get("orientation", "horizontal")
     if orientation == "vertical":
-        page_w, page_h = "72mm", "120mm"
+        # Hóspede Raiz tem mais conteúdo (checkboxes + regulamento) e precisa
+        # de mais altura — senão estoura e gera 2ª página com lixo.
+        is_raiz_check = payload.get("type") == "hospede_raiz"
+        page_w, page_h = "72mm", ("145mm" if is_raiz_check else "120mm")
     else:
         page_w, page_h = "132mm", "72mm"
 
