@@ -206,16 +206,22 @@ def build_voucher_html(payload: dict) -> str:
     # economiza ~9% de papel mas usa formato com aspect ratio compatível
     # com o filter POS-80 (evita lixo de raster nas bordas).
     orientation = payload.get("orientation", "horizontal")
+    is_raiz_check = payload.get("type") == "hospede_raiz"
     if orientation == "vertical":
-        # Margem branca generosa pra isolar conteúdo das bordas onde o filter
-        # POS-80 cospe bytes lixo. Topo 12mm + Base 27mm.
-        is_raiz_check = payload.get("type") == "hospede_raiz"
-        page_w, page_h = "72mm", ("185mm" if is_raiz_check else "170mm")
+        # Hóspede Raiz tem mais conteúdo e o topo cortava — mais margem nele.
+        page_w, page_h = "72mm", ("195mm" if is_raiz_check else "170mm")
     else:
         page_w, page_h = "132mm", "72mm"
 
+    # Padding do frame (vertical) — Raiz ganha 38mm de topo, comum 28mm.
+    if orientation == "vertical":
+        frame_pad = "38mm 2mm 12mm 2mm" if is_raiz_check else "28mm 2mm 12mm 2mm"
+    else:
+        frame_pad = "2mm"
+
     # Carimbo + borda só mudam no vertical. Horizontal mantém o desenho atual.
-    show_border = orientation == "horizontal"
+    # Override via payload: { force_border: true } liga a borda no vertical pra teste.
+    show_border = (orientation == "horizontal") or bool(payload.get("force_border"))
     carimbo_h = "30mm" if orientation == "vertical" else "18mm"
     # Vertical é estreito (72mm) — título precisa ser menor pra caber sem cortar.
     title_size = "7.5mm" if orientation == "vertical" else "9mm"
@@ -236,7 +242,7 @@ def build_voucher_html(payload: dict) -> str:
                 font-family: Georgia, "Times New Roman", serif; overflow: hidden; }}
   .frame {{
     width: {page_w}; height: {page_h};
-    padding: {("28mm 2mm 12mm 2mm" if orientation == "vertical" else "2mm")};
+    padding: {frame_pad};
     background: #fff;
     overflow: hidden;
     page-break-after: avoid;
