@@ -210,7 +210,7 @@ def build_voucher_html(payload: dict) -> str:
         # Hóspede Raiz tem mais conteúdo (checkboxes + regulamento) e precisa
         # de mais altura — senão estoura e gera 2ª página com lixo.
         is_raiz_check = payload.get("type") == "hospede_raiz"
-        page_w, page_h = "72mm", ("145mm" if is_raiz_check else "120mm")
+        page_w, page_h = "72mm", ("128mm" if is_raiz_check else "120mm")
     else:
         page_w, page_h = "132mm", "72mm"
 
@@ -432,7 +432,7 @@ def build_voucher_html(payload: dict) -> str:
       <div class="carimbo-area">
         <span class="carimbo-hint">Espaço para carimbo</span>
       </div>
-      <div class="hr"></div>
+      <div class="hr" style="margin-top:auto"></div>
       <div class="text-side">
         {raiz_extra if is_raiz else (welcome_extra if is_welcome else f'<div class="desc">{desc_line_1}{("<br>" + desc_line_2) if desc_line_2 else ""}</div>')}
       </div>
