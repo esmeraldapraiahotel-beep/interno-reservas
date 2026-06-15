@@ -278,22 +278,20 @@
       <h2 id="setup-title">Configurar impressora</h2>
       <p id="setup-status"></p>
       <div id="setup-instructions">
-        <p><strong>Como configurar em um PC novo:</strong></p>
+        <p><strong>Como configurar em um PC novo (super simples):</strong></p>
         <ol>
           <li>Conecte a impressora POS80 via USB.</li>
-          <li>Clone o projeto:<br>
-            <code style="display:inline-block;margin-top:4px;font-size:11px">git clone https://github.com/esmeraldapraiahotel-beep/interno-reservas.git</code>
-          </li>
-          <li><strong>macOS</strong>: duplo-clique em <code>setup.command</code> (driver POS_Printer_Driver.pkg precisa estar em ~/Downloads).<br>
-              <strong>Windows</strong>: duplo-clique em <code>setup.bat</code> (instalador POS80 já vem no projeto, baixa SumatraPDF automaticamente).</li>
+          <li>Baixe o instalador da sua plataforma abaixo.</li>
+          <li>Duplo-clique no arquivo baixado.</li>
         </ol>
-        <p>Os scripts fazem tudo: instalam dependências, driver, configuram a impressora, criam auto-start e abrem o app. Demora ~1-2 min.</p>
+        <p style="font-size:12px">O instalador baixa o projeto, o driver e o SumatraPDF sozinho, configura tudo e abre o app. Demora ~2 min. <strong>Não precisa terminal, não precisa Git.</strong></p>
+        <p style="font-size:12px;color:var(--ink-soft)">⚠ No Windows precisa do Python instalado — se não tiver, o instalador avisa e abre o download.</p>
       </div>
       <div class="actions">
-        <a href="https://raw.githubusercontent.com/esmeraldapraiahotel-beep/interno-reservas/main/setup.command"
-           class="btn" download="setup.command" target="_blank">⬇ Mac (setup.command)</a>
-        <a href="https://raw.githubusercontent.com/esmeraldapraiahotel-beep/interno-reservas/main/setup.bat"
-           class="btn" download="setup.bat" target="_blank">⬇ Windows (setup.bat)</a>
+        <a href="/instalar-mac.command"
+           class="btn" download="instalar-mac.command">⬇ Baixar instalador Mac</a>
+        <a href="/instalar-windows.bat"
+           class="btn" download="instalar-windows.bat">⬇ Baixar instalador Windows</a>
       </div>
       <div style="margin-top:10px">
         <a href="https://github.com/esmeraldapraiahotel-beep/interno-reservas#readme"
