@@ -207,10 +207,10 @@ def build_voucher_html(payload: dict) -> str:
     # com o filter POS-80 (evita lixo de raster nas bordas).
     orientation = payload.get("orientation", "horizontal")
     if orientation == "vertical":
-        # +10mm de margem branca acima e abaixo pra evitar artefatos
-        # do filter POS-80 nas bordas (lixo de bytes interpretados como texto).
+        # Margem branca generosa simétrica (topo+base) pra isolar conteúdo das
+        # bordas onde o filter POS-80 cospe bytes lixo.
         is_raiz_check = payload.get("type") == "hospede_raiz"
-        page_w, page_h = "72mm", ("165mm" if is_raiz_check else "150mm")
+        page_w, page_h = "72mm", ("170mm" if is_raiz_check else "155mm")
     else:
         page_w, page_h = "132mm", "72mm"
 
@@ -236,7 +236,7 @@ def build_voucher_html(payload: dict) -> str:
                 font-family: Georgia, "Times New Roman", serif; overflow: hidden; }}
   .frame {{
     width: {page_w}; height: {page_h};
-    padding: {("10mm 2mm" if orientation == "vertical" else "2mm")};
+    padding: {("12mm 2mm" if orientation == "vertical" else "2mm")};
     background: #fff;
     overflow: hidden;
     page-break-after: avoid;
