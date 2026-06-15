@@ -448,7 +448,6 @@ def build_voucher_html(payload: dict) -> str:
   </div>
   <div class="logo-hotel">
     {f'<img src="data:image/png;base64,{logo_esmeralda_b64}" alt="">' if logo_esmeralda_b64 else ""}
-    <div class="hotel-name">Esmeralda Praia Hotel</div>
   </div>
 </div>
 </body></html>
