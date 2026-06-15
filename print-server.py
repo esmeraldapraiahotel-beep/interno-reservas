@@ -219,9 +219,8 @@ def build_voucher_html(payload: dict) -> str:
     else:
         frame_pad = "2mm"
 
-    # Carimbo + borda só mudam no vertical. Horizontal mantém o desenho atual.
-    # Override via payload: { force_border: true } liga a borda no vertical pra teste.
-    show_border = (orientation == "horizontal") or bool(payload.get("force_border"))
+    # Borda em todos (vertical e horizontal) — testado e funcionando.
+    show_border = True
     carimbo_h = "30mm" if orientation == "vertical" else "18mm"
     # Vertical é estreito (72mm) — título precisa ser menor pra caber sem cortar.
     title_size = "7.5mm" if orientation == "vertical" else "9mm"
