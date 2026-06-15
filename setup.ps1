@@ -84,8 +84,31 @@ Write-Host "  OK Python: $pythonExe"
 
 # --- 2. Dependencias Python --------------------------------------
 Write-Host "[2/8] Instalando bibliotecas Python (Pillow, qrcode)..."
-& $python.Source -m pip install --user --quiet pillow qrcode 2>&1 | Out-Null
-Write-Host "  OK Dependencias instaladas"
+# pip joga warnings benignos no stderr; isolamos pra nao matar o script
+$prev = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+    $pipOutput = & $python.Source -m pip install --quiet --disable-pip-version-check --no-warn-script-location pillow qrcode 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  AVISO: pip retornou codigo $LASTEXITCODE. Tentando com --user..." -ForegroundColor Yellow
+        $pipOutput = & $python.Source -m pip install --user --quiet --disable-pip-version-check --no-warn-script-location pillow qrcode 2>&1
+    }
+} catch {
+    Write-Host "  AVISO no pip (continuando): $_" -ForegroundColor Yellow
+}
+$ErrorActionPreference = $prev
+
+# Valida que pillow e qrcode foram realmente instalados
+$check = & $python.Source -c "import PIL, qrcode; print('OK')" 2>&1
+if ($check -match "OK") {
+    Write-Host "  OK Dependencias instaladas"
+} else {
+    Write-Host "  ERRO: nao consegui importar Pillow/qrcode." -ForegroundColor Red
+    Write-Host "  Saida do pip: $pipOutput"
+    Write-Host "  Saida do teste: $check"
+    Read-Host "Pressione ENTER para sair"
+    exit 1
+}
 
 # --- 3. SumatraPDF ------------------------------------------------
 Write-Host "[3/8] Verificando SumatraPDF..."
