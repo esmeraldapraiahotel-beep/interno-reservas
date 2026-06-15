@@ -165,10 +165,22 @@ if (-not $printers) {
     }
 
     if ($installer) {
+        # Verifica se ja temos privilegios admin (instalar-windows.bat eleva no comeco)
+        $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+
         Write-Host "  Driver nao detectado - abrindo instalador..." -ForegroundColor Yellow
-        Write-Host "  Siga os passos do instalador (vai pedir confirmacao de administrador)."
+        if ($isAdmin) {
+            Write-Host "  (rodando com privilegios admin, sem UAC adicional)"
+        } else {
+            Write-Host "  (UAC vai pedir confirmacao de administrador agora)"
+        }
         try {
-            Start-Process -FilePath $installer -Verb RunAs -Wait
+            if ($isAdmin) {
+                # Ja somos admin, nao precisa relevar (evita 2o UAC)
+                Start-Process -FilePath $installer -Wait
+            } else {
+                Start-Process -FilePath $installer -Verb RunAs -Wait
+            }
         } catch {
             Write-Host "  AVISO: instalador cancelado ou bloqueado: $_" -ForegroundColor Yellow
             Write-Host "  Rode '$installer' manualmente como administrador e tente de novo."
