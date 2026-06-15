@@ -202,17 +202,23 @@ def build_voucher_html(payload: dict) -> str:
         </div>
         """
 
-    # PDF gerado em "landscape" (132mm × 72mm). O CUPS+driver POS-80 vai
-    # rotacionar e cortar pra caber nos 72mm de largura real do papel.
+    # Orientação: 'horizontal' (default, 132×72mm) ou 'vertical' (72×95mm,
+    # economiza ~28% de papel). User escolhe na UI por tipo de voucher.
+    orientation = payload.get("orientation", "horizontal")
+    if orientation == "vertical":
+        page_w, page_h = "72mm", "95mm"
+    else:
+        page_w, page_h = "132mm", "72mm"
+
     return f"""<!doctype html>
 <html><head><meta charset="utf-8">
 <style>
-  @page {{ size: 132mm 72mm; margin: 0; }}
+  @page {{ size: {page_w} {page_h}; margin: 0; }}
   * {{ box-sizing: border-box; }}
-  html, body {{ width: 132mm; height: 72mm; margin:0; padding:0; background:#fff; color:#000;
+  html, body {{ width: {page_w}; height: {page_h}; margin:0; padding:0; background:#fff; color:#000;
                 font-family: Georgia, "Times New Roman", serif; overflow: hidden; }}
   .frame {{
-    width: 132mm; height: 72mm;
+    width: {page_w}; height: {page_h};
     padding: 2mm;
     background: #fff;
     overflow: hidden;
@@ -235,23 +241,25 @@ def build_voucher_html(payload: dict) -> str:
     overflow: hidden;
   }}
   /* Layout horizontal otimizado: título topo, depois 2 colunas (texto + código),
-     e info do hóspede no rodapé em 2 colunas. */
+     e info do hóspede no rodapé em 2 colunas.
+     Vertical: empilha tudo (single column). */
   .top-row {{
     display: flex;
-    gap: 5mm;
+    gap: {("3mm" if orientation == "vertical" else "5mm")};
     align-items: center;
     flex: 1;
     min-height: 0;
+    flex-direction: {("column" if orientation == "vertical" else "row")};
   }}
-  .top-row .text-side {{ flex: 1.4; display: flex; flex-direction: column; justify-content: center; }}
+  .top-row .text-side {{ flex: {("0 0 auto" if orientation == "vertical" else "1.4")}; display: flex; flex-direction: column; justify-content: center; width: 100%; }}
   .top-row .code-side {{
-    flex: 1;
+    flex: {("0 0 auto" if orientation == "vertical" else "1")};
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     border: 0.4mm solid #000;
     border-radius: 2mm;
-    padding: 2mm 1mm;
-    min-width: 38mm;
+    padding: 2mm 2mm;
+    {("min-width: 60mm;" if orientation == "vertical" else "min-width: 38mm;")}
   }}
   .top-row .code-side .lbl-code {{
     font-family: Arial, Helvetica, sans-serif;
@@ -262,6 +270,11 @@ def build_voucher_html(payload: dict) -> str:
     color: #444;
     margin-bottom: 0.5mm;
   }}
+  /* Vertical: info-col em coluna única (Hóspede / Quarto / Reserva / Validade) */
+  {(
+    ".info { flex-direction: column; gap: 0.5mm; } .info-col:last-child { padding-left: 0; }"
+    if orientation == "vertical" else ""
+  )}
   .icon {{ display: flex; justify-content: center; margin-bottom: 0.5mm; }}
   .icon svg {{ width: 9mm; height: 9mm; }}
   .title {{

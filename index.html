@@ -237,21 +237,31 @@
   <div id="tab-single">
     <div class="card">
       <h2>Tipo de voucher</h2>
-      <div class="field">
-        <select id="voucher-type">
-          <option value="">Selecione…</option>
-          <option value="welcome_drink">Welcome Drink</option>
-          <option value="gelato">Gelato Liberado</option>
-          <option value="drink_liberado">Drink Liberado</option>
-          <option value="city_tour">City Tour</option>
-          <option value="passeio_pipa">Passeio Pipa</option>
-          <option value="passeio_litoral_norte">Passeio Litoral Norte</option>
-          <option value="vila_cvc">Vila CVC · 15% OFF</option>
-          <option value="hospede_raiz">Hóspede Raiz</option>
-          <option value="hospede_romantico">Hóspede Romântico</option>
-        </select>
-        <div class="small" id="voucher-desc"></div>
+      <div class="row">
+        <div class="field">
+          <label>Tipo</label>
+          <select id="voucher-type">
+            <option value="">Selecione…</option>
+            <option value="welcome_drink">Welcome Drink</option>
+            <option value="gelato">Gelato Liberado</option>
+            <option value="drink_liberado">Drink Liberado</option>
+            <option value="city_tour">City Tour</option>
+            <option value="passeio_pipa">Passeio Pipa</option>
+            <option value="passeio_litoral_norte">Passeio Litoral Norte</option>
+            <option value="vila_cvc">Vila CVC · 15% OFF</option>
+            <option value="hospede_raiz">Hóspede Raiz</option>
+            <option value="hospede_romantico">Hóspede Romântico</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Orientação</label>
+          <select id="orientation">
+            <option value="horizontal">Horizontal (132 × 72mm)</option>
+            <option value="vertical">Vertical (72 × 95mm — economiza papel)</option>
+          </select>
+        </div>
       </div>
+      <div class="small" id="voucher-desc"></div>
     </div>
 
     <div class="card" id="card-lookup">
@@ -726,6 +736,7 @@ async function doPrint() {
       await printOne({
         type: sel.value, title: t.title, subtitle: t.subtitle, description: t.description,
         code: generateCode(sel.value), issued_at: new Date().toISOString(),
+        orientation: $("orientation").value || "horizontal",
       });
       setAlert("✓ Voucher Welcome Drink impresso.", "ok", true);
     } catch (e) {
@@ -764,6 +775,7 @@ async function doPrint() {
         code: generateCode(sel.value),
         issued_at: new Date().toISOString(),
         extra_label: t.extra_field?.label || "Validade",
+        orientation: $("orientation").value || "horizontal",
       };
       try {
         await printOne(payload);
