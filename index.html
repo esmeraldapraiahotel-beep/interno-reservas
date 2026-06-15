@@ -446,7 +446,16 @@ function key(g) { return `${g.nome || ""}|${g.sobrenome || ""}|${g.uh || ""}`; }
 function selectedGuests() {
   const t = VOUCHER_TYPES[sel.value];
   if (!t || !t.requires_guest) return [];
-  return foundGuests.filter((g) => selectedDocs.has(key(g)));
+  if (foundGuests.length > 0) {
+    return foundGuests.filter((g) => selectedDocs.has(key(g)));
+  }
+  // Fluxo manual: usa o que o user digitou no form como 1 hóspede só
+  const nome = $("f-name").value.trim();
+  const room = $("f-room").value.trim();
+  if (nome || room) {
+    return [{ nome, sobrenome: "", uh: room, crianca: false }];
+  }
+  return [];
 }
 
 function diasEstadia() {
@@ -489,7 +498,9 @@ function updateAll() {
   cardLookup.style.display = isWelcome ? "none" : "";
   cardForm.style.display = isWelcome ? "none" : "";
   cardPick.style.display = (!isWelcome && foundGuests.length > 0) ? "" : "none";
-  cardStay.style.display = (!isWelcome && t && t.daily && foundGuests.length > 0) ? "" : "none";
+  // Estadia: SEMPRE pra tipos daily (Hóspede Raiz, Gelato, Drink),
+  // mesmo quando o user digita os dados manualmente sem buscar reserva.
+  cardStay.style.display = (!isWelcome && t && t.daily) ? "" : "none";
 
   // Re-renderiza pick list (pra mostrar/esconder crianças e atualizar count)
   renderPickList();
