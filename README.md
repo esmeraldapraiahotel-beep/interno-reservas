@@ -1,131 +1,97 @@
 # Vouchers Internos — Esmeralda Praia Hotel
 
-App pra impressão de vouchers internos no balcão de Reservas. Hospedado em
+App pra impressão de vouchers internos na recepção / balcão de Reservas. Hospedado em
 `internoreservas.esmeraldapraiahotel.com.br`, imprime na impressora térmica
-GoldenSky (POS80) conectada ao PC.
+POS80 (GoldenSky) conectada via USB ao PC.
 
-## Como funciona
+## Setup em um PC novo (1-clique)
 
-```
-┌──────────────────────────┐         ┌──────────────────────┐
-│ Browser do balcão        │         │ Print server (Python)│
-│ internoreservas...com.br │ POST → │ http://localhost:9876│
-└──────────────────────────┘         └──────────┬───────────┘
-                                                │ lp -d POS80 -o raw
-                                                ▼
-                                        Impressora térmica
-                                            (GoldenSky)
-```
+1. **Conecte a impressora** POS80 via USB no Mac.
+2. Coloque o **driver `POS_Printer_Driver.pkg`** em `~/Downloads`.
+3. **Clone o repo** e abra:
+   ```bash
+   git clone https://github.com/esmeraldapraiahotel-beep/interno-reservas.git ~/Projetos/interno-reservas
+   cd ~/Projetos/interno-reservas
+   ```
+4. **Duplo-clique em `setup.command`** (ou rode `bash setup.command`).
 
-- O **frontend** (HTML + JS) é estático, servido pelo VPS.
-- O **print server** roda no PC do balcão na porta 9876.
-- Toda chamada de impressão vai em `POST http://localhost:9876/print` com JSON
-  do voucher → server renderiza HTML → screenshot via Chrome → bitmap ESC/POS →
-  manda pra POS80.
-- Quando o user esquece de iniciar o servidor, o app mostra um banner vermelho
-  embaixo: "Servidor local não respondendo".
-
-## Tipos de voucher disponíveis
-
-- Welcome Drink (sem dados do hóspede)
-- Gelato Liberado
-- Drink Liberado
-- City Tour
-- Passeio Pipa
-- Passeio Litoral Norte
-- Vila CVC · 15% OFF
-- Hóspede Raiz
-- Hóspede Romântico
-
-Cada tipo tem título, descrição e validade padrão configurados no JS.
-
-## Setup no PC do balcão (uma vez)
-
-```bash
-# Instala dependências
-pip3 install pillow qrcode
-
-# (opcional) Adiciona um atalho no Desktop
-cp start-server.command ~/Desktop/
-chmod +x ~/Desktop/start-server.command
-```
-
-Depois, duplo-clique em `start-server.command` no Desktop pra iniciar o
-servidor toda vez que ligar o computador.
-
-## Setup recorrente (automático ao ligar — macOS)
-
-Crie um `LaunchAgent` em `~/Library/LaunchAgents/com.esmeralda.vouchers.plist`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>com.esmeralda.vouchers</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/usr/bin/python3</string>
-    <string>/Users/marketingesmeralda/Projetos/interno-reservas/print-server.py</string>
-  </array>
-  <key>KeepAlive</key><true/>
-  <key>RunAtLoad</key><true/>
-  <key>StandardOutPath</key><string>/tmp/vouchers-server.log</string>
-  <key>StandardErrorPath</key><string>/tmp/vouchers-server.err</string>
-</dict>
-</plist>
-```
-
-Ative com:
-
-```bash
-launchctl load ~/Library/LaunchAgents/com.esmeralda.vouchers.plist
-```
-
-## Deploy do frontend no VPS
-
-```bash
-rsync -az -e "ssh -i ~/.ssh/hostinger_eph" \
-  index.html logo.svg \
-  root@187.127.26.180:/var/www/internoreservas-esmeralda/
-```
-
-E configuração nginx (em `/etc/nginx/sites-enabled/internoreservas`):
-
-```nginx
-server {
-    server_name internoreservas.esmeraldapraiahotel.com.br;
-    root /var/www/internoreservas-esmeralda;
-    index index.html;
-
-    location / { try_files $uri /index.html; }
-
-    listen 443 ssl;
-    ssl_certificate     /etc/letsencrypt/live/internoreservas.esmeraldapraiahotel.com.br/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/internoreservas.esmeraldapraiahotel.com.br/privkey.pem;
-}
-
-server {
-    listen 80;
-    server_name internoreservas.esmeraldapraiahotel.com.br;
-    return 301 https://$host$request_uri;
-}
-```
+O script faz tudo:
+- ✅ Instala dependências Python (Pillow, qrcode)
+- ✅ Abre o instalador do driver POS-80 se ainda não estiver
+- ✅ Detecta a impressora térmica conectada via USB
+- ✅ Configura a fila CUPS com o PPD oficial
+- ✅ Cria LaunchAgent pra iniciar o servidor automaticamente no boot
+- ✅ Verifica health e abre o app no navegador
 
 ## Estrutura do projeto
 
 ```
 interno-reservas/
-├── index.html        Frontend single-page
-├── print-server.py   Servidor local de impressão
-├── logo.svg          Logo Esmeralda Praia Hotel
-├── start-server.command   Atalho macOS pra iniciar
+├── index.html           # App principal (emissão de voucher)
+├── dashboard.html       # Dashboard de emissões
+├── print-server.py      # Servidor local de impressão (porta 9876)
+├── logo-esmeralda.png   # Logo do hotel impressa no voucher
+├── logo.svg             # Logo Alavantú (uso futuro)
+├── setup.command        # ⭐ Instalador one-click
 └── README.md
 ```
 
-## Próximos passos
+## Como funciona
 
-- [ ] Habilitar upload de planilha (.xlsx/.csv) com cabeçalho `nome,quarto,reserva,tipo` → loop de impressão
-- [ ] Persistir log de vouchers emitidos no Supabase pra auditoria
-- [ ] Adicionar nicho de "Cancelar voucher" (invalidar QR)
-- [ ] Modo offline: cache dos últimos 100 vouchers emitidos
+```
+┌──────────────────────────┐         ┌──────────────────────┐
+│ Browser do balcão        │ POST →  │ Print server (Python)│
+│ internoreservas...com.br │         │ http://localhost:9876│
+└──────────────────────────┘         └──────────┬───────────┘
+                                                │ lp -d POS80
+                                                ▼
+                                        Impressora térmica
+                                        (POS80 / GoldenSky)
+```
+
+- O **frontend** é estático no VPS (HTML + JS).
+- O **print server** roda no PC do balcão na porta 9876.
+- O HTML é renderizado em PDF via Chrome headless, e o CUPS+filter oficial do
+  POS-80 converte pra ESC/POS automaticamente.
+
+## Operação dia-a-dia
+
+- O servidor sobe sozinho ao ligar o Mac (via LaunchAgent).
+- A barra verde no topo do app indica que tá conectado.
+- Se cair, basta rodar `bash setup.command` de novo.
+
+### Reinício manual
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.esmeralda.vouchers.plist
+launchctl load   ~/Library/LaunchAgents/com.esmeralda.vouchers.plist
+```
+
+### Logs
+
+- `/tmp/voucher-server.log` — saída padrão
+- `/tmp/voucher-server.err` — erros
+
+### Parar de iniciar automaticamente
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.esmeralda.vouchers.plist
+rm ~/Library/LaunchAgents/com.esmeralda.vouchers.plist
+```
+
+## Tipos de voucher disponíveis
+
+- Welcome Drink (sem dados do hóspede)
+- Gelato Liberado / Drink Liberado (diário, 1 por pessoa, exclui criança no drink)
+- City Tour / Passeio Pipa / Passeio Litoral Norte (campo "Data do passeio" em branco)
+- Vila CVC · 15% OFF
+- Hóspede Raiz (checkboxes Gelato/Drink + regulamento)
+- Hóspede Romântico (campo "Data do jantar" em branco)
+
+## Deploy do frontend (VPS)
+
+```bash
+rsync -az -e "ssh -i ~/.ssh/hostinger_eph" \
+  index.html dashboard.html logo-esmeralda.png \
+  root@187.127.26.180:/var/www/internoreservas-esmeralda/
+```

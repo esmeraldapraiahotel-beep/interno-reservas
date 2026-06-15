@@ -152,7 +152,12 @@
     font-size: 12px;
     font-weight: 600;
     color: var(--ink-soft);
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 999px;
+    transition: background 0.15s;
   }
+  .printer-pill:hover { background: rgba(0,0,0,0.04); }
   .printer-pill .dot {
     width: 8px; height: 8px; border-radius: 50%;
     background: var(--gray-400);
@@ -173,6 +178,38 @@
   .printer-pill.online .dot { background: #22c55e; }
   .printer-pill.offline { color: #dc2626; }
   .printer-pill.offline .dot { background: #ef4444; }
+
+  /* Modal de setup */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 100; padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 16px;
+    max-width: 560px; width: 100%;
+    padding: 28px;
+    box-shadow: 0 24px 60px -20px rgba(0,0,0,0.4);
+  }
+  .modal h2 { margin: 0 0 8px; font-size: 18px; font-weight: 800; }
+  .modal p { margin: 0 0 14px; font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+  .modal ol { padding-left: 18px; margin: 0 0 14px; font-size: 13px; color: var(--ink-soft); }
+  .modal ol li { margin-bottom: 6px; }
+  .modal .actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .modal .actions .btn { flex: 1; min-width: 130px; }
+  .modal code {
+    background: #f5efe5; padding: 2px 6px; border-radius: 4px;
+    font-size: 12px; font-family: Menlo, monospace; color: var(--accent);
+  }
+  .modal .close {
+    float: right; background: transparent; border: none;
+    cursor: pointer; font-size: 22px; color: var(--gray-400);
+    margin-top: -8px; margin-right: -8px;
+  }
+  .modal .close:hover { color: var(--ink); }
   .guest-row {
     display: flex;
     align-items: center;
@@ -231,7 +268,32 @@
       <button class="tab active" data-tab="single">Emitir voucher</button>
       <button class="tab" data-tab="batch">Upload de planilha</button>
     </div>
-    <div id="printer-status" class="printer-pill" title="Status da impressora local"></div>
+    <div id="printer-status" class="printer-pill" title="Clique para ver instruções"></div>
+  </div>
+
+  <!-- Modal de setup -->
+  <div class="modal-backdrop" id="setup-modal">
+    <div class="modal">
+      <button class="close" onclick="document.getElementById('setup-modal').classList.remove('open')">×</button>
+      <h2 id="setup-title">Configurar impressora</h2>
+      <p id="setup-status"></p>
+      <div id="setup-instructions">
+        <p><strong>Como configurar em um PC novo:</strong></p>
+        <ol>
+          <li>Conecte a impressora POS80 via USB.</li>
+          <li>Coloque o arquivo <code>POS_Printer_Driver.pkg</code> em <code>~/Downloads</code>.</li>
+          <li>Clone o projeto: <code>git clone https://github.com/esmeraldapraiahotel-beep/interno-reservas.git ~/Projetos/interno-reservas</code></li>
+          <li>Abra a pasta no Finder e dê <strong>duplo-clique em <code>setup.command</code></strong>.</li>
+        </ol>
+        <p>O script faz tudo: instala dependências, configura driver e fila CUPS, cria auto-start, e abre o app. Demora ~1 min.</p>
+      </div>
+      <div class="actions">
+        <a href="https://raw.githubusercontent.com/esmeraldapraiahotel-beep/interno-reservas/main/setup.command"
+           class="btn" download="setup.command" target="_blank">⬇ Baixar setup.command</a>
+        <a href="https://github.com/esmeraldapraiahotel-beep/interno-reservas#readme"
+           class="btn btn-secondary" target="_blank" style="background:transparent;color:var(--accent);border:1.5px solid var(--accent)">Ver README</a>
+      </div>
+    </div>
   </div>
 
   <div id="tab-single">
@@ -810,12 +872,26 @@ async function pingPrinter() {
       const j = await r.json();
       printerStatus.className = "printer-pill online";
       printerStatus.innerHTML = `<span class="dot"></span> Impressora ${j.printer || "POS80"} conectada`;
+      printerStatus.dataset.status = "online";
       return;
     }
   } catch (e) {}
   printerStatus.className = "printer-pill offline";
-  printerStatus.innerHTML = `<span class="dot"></span> Servidor local offline`;
+  printerStatus.innerHTML = `<span class="dot"></span> Servidor local offline · Configurar`;
+  printerStatus.dataset.status = "offline";
 }
+
+// Click no status abre modal de configuração
+printerStatus.addEventListener("click", () => {
+  const modal = document.getElementById("setup-modal");
+  const status = document.getElementById("setup-status");
+  if (printerStatus.dataset.status === "online") {
+    status.innerHTML = '✓ <strong style="color:var(--ok)">Impressora conectada e funcionando.</strong> Caso queira reinstalar em outro PC, siga as instruções abaixo.';
+  } else {
+    status.innerHTML = '⚠ <strong style="color:var(--danger)">Servidor local não está rodando.</strong> Siga as instruções abaixo pra configurar.';
+  }
+  modal.classList.add("open");
+});
 pingPrinter();
 setInterval(pingPrinter, 8000);
 updateAll();

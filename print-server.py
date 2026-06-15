@@ -32,7 +32,26 @@ except ImportError as e:
 
 # ─── Config ──────────────────────────────────────────────────
 PORT = int(os.environ.get("VOUCHER_PRINTER_PORT", 9876))
-PRINTER = os.environ.get("VOUCHER_PRINTER_NAME", "POS80")
+
+
+def _autodetect_printer() -> str:
+    """Acha a primeira impressora com nome ou modelo POS/GoldenSky/thermal.
+    Útil pra setup em outros PCs sem hardcode."""
+    try:
+        r = subprocess.run(["lpstat", "-p"], capture_output=True, text=True, timeout=5)
+        for line in r.stdout.splitlines():
+            # linha tipo: "impressora POS80 está ociosa..."
+            parts = line.split()
+            if len(parts) >= 2 and parts[0].lower() in ("impressora", "printer"):
+                name = parts[1]
+                if "POS" in name.upper() or "GOLDEN" in name.upper() or "THERMAL" in name.upper():
+                    return name
+    except Exception:
+        pass
+    return "POS80"  # fallback
+
+
+PRINTER = os.environ.get("VOUCHER_PRINTER_NAME") or _autodetect_printer()
 PRINTER_WIDTH = 576  # 80mm @ 8 dots/mm
 
 # Supabase pra logar cada voucher emitido (dashboard usa esses dados)
