@@ -281,17 +281,23 @@
         <p><strong>Como configurar em um PC novo:</strong></p>
         <ol>
           <li>Conecte a impressora POS80 via USB.</li>
-          <li>Coloque o arquivo <code>POS_Printer_Driver.pkg</code> em <code>~/Downloads</code>.</li>
-          <li>Clone o projeto: <code>git clone https://github.com/esmeraldapraiahotel-beep/interno-reservas.git ~/Projetos/interno-reservas</code></li>
-          <li>Abra a pasta no Finder e dê <strong>duplo-clique em <code>setup.command</code></strong>.</li>
+          <li>Clone o projeto:<br>
+            <code style="display:inline-block;margin-top:4px;font-size:11px">git clone https://github.com/esmeraldapraiahotel-beep/interno-reservas.git</code>
+          </li>
+          <li><strong>macOS</strong>: duplo-clique em <code>setup.command</code> (driver POS_Printer_Driver.pkg precisa estar em ~/Downloads).<br>
+              <strong>Windows</strong>: duplo-clique em <code>setup.bat</code> (instalador POS80 já vem no projeto, baixa SumatraPDF automaticamente).</li>
         </ol>
-        <p>O script faz tudo: instala dependências, configura driver e fila CUPS, cria auto-start, e abre o app. Demora ~1 min.</p>
+        <p>Os scripts fazem tudo: instalam dependências, driver, configuram a impressora, criam auto-start e abrem o app. Demora ~1-2 min.</p>
       </div>
       <div class="actions">
         <a href="https://raw.githubusercontent.com/esmeraldapraiahotel-beep/interno-reservas/main/setup.command"
-           class="btn" download="setup.command" target="_blank">⬇ Baixar setup.command</a>
+           class="btn" download="setup.command" target="_blank">⬇ Mac (setup.command)</a>
+        <a href="https://raw.githubusercontent.com/esmeraldapraiahotel-beep/interno-reservas/main/setup.bat"
+           class="btn" download="setup.bat" target="_blank">⬇ Windows (setup.bat)</a>
+      </div>
+      <div style="margin-top:10px">
         <a href="https://github.com/esmeraldapraiahotel-beep/interno-reservas#readme"
-           class="btn btn-secondary" target="_blank" style="background:transparent;color:var(--accent);border:1.5px solid var(--accent)">Ver README</a>
+           target="_blank" style="font-size:12px;color:var(--ink-soft);text-decoration:underline">Ver instruções completas (README)</a>
       </div>
     </div>
   </div>

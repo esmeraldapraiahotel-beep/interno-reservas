@@ -6,22 +6,37 @@ POS80 (GoldenSky) conectada via USB ao PC.
 
 ## Setup em um PC novo (1-clique)
 
-1. **Conecte a impressora** POS80 via USB no Mac.
+### 🍎 macOS
+
+1. **Conecte a impressora** POS80 via USB.
 2. Coloque o **driver `POS_Printer_Driver.pkg`** em `~/Downloads`.
-3. **Clone o repo** e abra:
+3. Clone o projeto:
    ```bash
    git clone https://github.com/esmeraldapraiahotel-beep/interno-reservas.git ~/Projetos/interno-reservas
    cd ~/Projetos/interno-reservas
    ```
-4. **Duplo-clique em `setup.command`** (ou rode `bash setup.command`).
+4. **Duplo-clique em `setup.command`**.
 
-O script faz tudo:
-- ✅ Instala dependências Python (Pillow, qrcode)
-- ✅ Abre o instalador do driver POS-80 se ainda não estiver
-- ✅ Detecta a impressora térmica conectada via USB
-- ✅ Configura a fila CUPS com o PPD oficial
-- ✅ Cria LaunchAgent pra iniciar o servidor automaticamente no boot
-- ✅ Verifica health e abre o app no navegador
+### 🪟 Windows
+
+1. **Conecte a impressora** POS80 via USB.
+2. Clone o projeto (Git for Windows ou baixe o ZIP):
+   ```powershell
+   git clone https://github.com/esmeraldapraiahotel-beep/interno-reservas.git C:\interno-reservas
+   cd C:\interno-reservas
+   ```
+3. **Duplo-clique em `setup.bat`** (rode como administrador).
+
+> O instalador do driver `POS80Setup.exe` já vem no projeto e roda automaticamente. O SumatraPDF (usado pra imprimir silenciosamente) é baixado pelo próprio script.
+
+### O que cada script faz
+
+- ✅ Verifica/instala dependências (Python, Pillow, qrcode)
+- ✅ Instala o driver da impressora (POS_Printer_Driver.pkg no Mac / POS80Setup.exe no Windows)
+- ✅ Detecta a impressora térmica automaticamente
+- ✅ Configura a fila de impressão (CUPS / Get-Printer)
+- ✅ Cria auto-start (LaunchAgent no Mac / Startup folder no Windows)
+- ✅ Inicia o servidor local e abre o app no navegador
 
 ## Estrutura do projeto
 
@@ -29,10 +44,13 @@ O script faz tudo:
 interno-reservas/
 ├── index.html           # App principal (emissão de voucher)
 ├── dashboard.html       # Dashboard de emissões
-├── print-server.py      # Servidor local de impressão (porta 9876)
+├── print-server.py      # Servidor local de impressão (porta 9876, cross-platform)
 ├── logo-esmeralda.png   # Logo do hotel impressa no voucher
 ├── logo.svg             # Logo Alavantú (uso futuro)
-├── setup.command        # ⭐ Instalador one-click
+├── setup.command        # ⭐ Instalador one-click (macOS)
+├── setup.ps1            # Script PowerShell de setup (Windows)
+├── setup.bat            # ⭐ Wrapper one-click (Windows)
+├── POS80Setup.exe       # Driver da impressora pra Windows
 └── README.md
 ```
 
@@ -62,21 +80,30 @@ interno-reservas/
 
 ### Reinício manual
 
+**macOS:**
 ```bash
 launchctl unload ~/Library/LaunchAgents/com.esmeralda.vouchers.plist
 launchctl load   ~/Library/LaunchAgents/com.esmeralda.vouchers.plist
 ```
 
+**Windows:** Task Manager → encerra o `python.exe` que tá rodando → executa `setup.bat` de novo (ou só roda o atalho da pasta Startup).
+
 ### Logs
 
-- `/tmp/voucher-server.log` — saída padrão
-- `/tmp/voucher-server.err` — erros
+- **macOS:** `/tmp/voucher-server.log` (saída) e `/tmp/voucher-server.err` (erros)
+- **Windows:** janela do Python no Tray do Windows
 
 ### Parar de iniciar automaticamente
 
+**macOS:**
 ```bash
 launchctl unload ~/Library/LaunchAgents/com.esmeralda.vouchers.plist
 rm ~/Library/LaunchAgents/com.esmeralda.vouchers.plist
+```
+
+**Windows:** apague o atalho `VouchersInternos.lnk` da pasta Startup:
+```powershell
+Remove-Item "$([Environment]::GetFolderPath('Startup'))\VouchersInternos.lnk"
 ```
 
 ## Tipos de voucher disponíveis

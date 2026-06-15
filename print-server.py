@@ -19,9 +19,13 @@ import sys
 import json
 import base64
 import subprocess
+import platform
 from datetime import datetime
 from io import BytesIO
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+IS_WINDOWS = platform.system() == "Windows"
+IS_MAC = platform.system() == "Darwin"
 
 try:
     from PIL import Image
@@ -36,16 +40,28 @@ PORT = int(os.environ.get("VOUCHER_PRINTER_PORT", 9876))
 
 def _autodetect_printer() -> str:
     """Acha a primeira impressora com nome ou modelo POS/GoldenSky/thermal.
-    Útil pra setup em outros PCs sem hardcode."""
+    Funciona em macOS (lpstat) e Windows (wmic/powershell)."""
     try:
-        r = subprocess.run(["lpstat", "-p"], capture_output=True, text=True, timeout=5)
-        for line in r.stdout.splitlines():
-            # linha tipo: "impressora POS80 está ociosa..."
-            parts = line.split()
-            if len(parts) >= 2 and parts[0].lower() in ("impressora", "printer"):
-                name = parts[1]
-                if "POS" in name.upper() or "GOLDEN" in name.upper() or "THERMAL" in name.upper():
+        if IS_WINDOWS:
+            r = subprocess.run(
+                ["powershell", "-Command", "Get-Printer | Select-Object -ExpandProperty Name"],
+                capture_output=True, text=True, timeout=8,
+            )
+            for line in r.stdout.splitlines():
+                name = line.strip()
+                if not name:
+                    continue
+                if "POS" in name.upper() or "GOLDEN" in name.upper() or "THERMAL" in name.upper() or "80" in name:
                     return name
+        else:
+            r = subprocess.run(["lpstat", "-p"], capture_output=True, text=True, timeout=5)
+            for line in r.stdout.splitlines():
+                # linha tipo: "impressora POS80 está ociosa..."
+                parts = line.split()
+                if len(parts) >= 2 and parts[0].lower() in ("impressora", "printer"):
+                    name = parts[1]
+                    if "POS" in name.upper() or "GOLDEN" in name.upper() or "THERMAL" in name.upper():
+                        return name
     except Exception:
         pass
     return "POS80"  # fallback
@@ -477,25 +493,54 @@ def build_voucher_html(payload: dict) -> str:
 """
 
 
-def html_to_pdf(html: str, pdf_path: str) -> bool:
-    """Renderiza HTML em PDF via Chrome headless. CUPS usa o filter oficial
-    `pos` (do driver POS-80) pra converter o PDF em comandos ESC/POS corretos."""
-    chrome_paths = [
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "/Applications/Chromium.app/Contents/MacOS/Chromium",
-        "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+def _find_chrome() -> str | None:
+    """Acha Chrome/Edge/Brave em macOS ou Windows."""
+    if IS_WINDOWS:
+        env = os.environ
+        candidates = [
+            (env.get("PROGRAMFILES") or "C:\\Program Files") + r"\Google\Chrome\Application\chrome.exe",
+            (env.get("PROGRAMFILES(X86)") or "C:\\Program Files (x86)") + r"\Google\Chrome\Application\chrome.exe",
+            (env.get("LOCALAPPDATA") or "") + r"\Google\Chrome\Application\chrome.exe",
+            (env.get("PROGRAMFILES") or "C:\\Program Files") + r"\Microsoft\Edge\Application\msedge.exe",
+            (env.get("PROGRAMFILES(X86)") or "C:\\Program Files (x86)") + r"\Microsoft\Edge\Application\msedge.exe",
+        ]
+    else:
+        candidates = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+        ]
+    return next((p for p in candidates if p and os.path.exists(p)), None)
+
+
+def _find_sumatra() -> str | None:
+    """Acha SumatraPDF no Windows (preferencial pra imprimir PDF silenciosamente)."""
+    if not IS_WINDOWS:
+        return None
+    env = os.environ
+    candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "SumatraPDF.exe"),
+        (env.get("PROGRAMFILES") or "C:\\Program Files") + r"\SumatraPDF\SumatraPDF.exe",
+        (env.get("LOCALAPPDATA") or "") + r"\SumatraPDF\SumatraPDF.exe",
     ]
-    chrome = next((p for p in chrome_paths if os.path.exists(p)), None)
+    return next((p for p in candidates if p and os.path.exists(p)), None)
+
+
+def html_to_pdf(html: str, pdf_path: str) -> bool:
+    """Renderiza HTML em PDF via Chrome headless. Cross-platform."""
+    chrome = _find_chrome()
     if not chrome:
         return False
     html_path = pdf_path.replace(".pdf", ".html")
-    with open(html_path, "w") as f:
+    with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
+    file_url = "file:///" + html_path.replace("\\", "/") if IS_WINDOWS else "file://" + html_path
     cmd = [
         chrome, "--headless", "--disable-gpu", "--no-pdf-header-footer",
         "--print-to-pdf-no-header",
         f"--print-to-pdf={pdf_path}",
-        f"file://{html_path}",
+        file_url,
     ]
     try:
         subprocess.run(cmd, capture_output=True, timeout=30)
@@ -505,13 +550,36 @@ def html_to_pdf(html: str, pdf_path: str) -> bool:
 
 
 def send_pdf_to_printer(pdf_path: str) -> tuple[bool, str]:
-    """Manda PDF pra POS80 via lp (CUPS usa filter `pos` oficial).
-
-    Opções importantes:
-    - PageCutType=1PartialCutPage: corta após o voucher (sem avançar 30cm)
-    - DocCutType=2FullCutPage: corte total ao final do documento
-    - media=Custom.132x72mm: força papel custom (sem padding extra)
+    """Manda PDF pra impressora.
+    macOS: lp (CUPS + filter POS-80 oficial)
+    Windows: SumatraPDF (silencioso) ou PowerShell Start-Process Print
     """
+    if IS_WINDOWS:
+        sumatra = _find_sumatra()
+        if sumatra:
+            try:
+                r = subprocess.run(
+                    [sumatra, "-print-to", PRINTER, "-print-settings", "fit", "-silent", pdf_path],
+                    capture_output=True, text=True, timeout=20,
+                )
+                if r.returncode == 0:
+                    return True, "ok (SumatraPDF)"
+                return False, f"SumatraPDF falhou: {r.stderr.strip() or r.stdout.strip()}"
+            except Exception as e:
+                return False, str(e)
+        # Fallback PowerShell — depende do reader default do Windows
+        try:
+            ps = (
+                f"$pdf = '{pdf_path}'; "
+                f"Start-Process -FilePath $pdf -Verb PrintTo -ArgumentList '\"{PRINTER}\"' -WindowStyle Hidden -Wait"
+            )
+            r = subprocess.run(["powershell", "-Command", ps], capture_output=True, text=True, timeout=20)
+            if r.returncode == 0:
+                return True, "ok (PowerShell)"
+            return False, f"PowerShell falhou: {r.stderr.strip()}"
+        except Exception as e:
+            return False, str(e)
+    # macOS / Linux — CUPS lp
     try:
         r = subprocess.run(
             ["lp", "-d", PRINTER,
@@ -634,9 +702,17 @@ def send_to_printer(escpos_bytes: bytes) -> tuple[bool, str]:
 
 def is_printer_available() -> bool:
     try:
+        if IS_WINDOWS:
+            r = subprocess.run(
+                ["powershell", "-Command", f"(Get-Printer -Name '{PRINTER}').PrinterStatus"],
+                capture_output=True, text=True, timeout=5,
+            )
+            out = r.stdout.strip().lower()
+            return bool(out) and "error" not in out and "offline" not in out
         r = subprocess.run(["lpstat", "-p", PRINTER], capture_output=True, text=True, timeout=5)
         return "ociosa" in r.stdout or "idle" in r.stdout.lower() or "imprimindo" in r.stdout
-    except: return False
+    except Exception:
+        return False
 
 
 # ─── HTTP Handler ────────────────────────────────────────────
