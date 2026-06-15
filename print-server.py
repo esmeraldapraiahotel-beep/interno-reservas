@@ -35,6 +35,43 @@ PORT = int(os.environ.get("VOUCHER_PRINTER_PORT", 9876))
 PRINTER = os.environ.get("VOUCHER_PRINTER_NAME", "POS80")
 PRINTER_WIDTH = 576  # 80mm @ 8 dots/mm
 
+# Supabase pra logar cada voucher emitido (dashboard usa esses dados)
+SUPABASE_URL = "https://lafiidrevxommwtvxcws.supabase.co"
+SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhZmlpZHJldnhvbW13dHZ4Y3dzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTAzNzUsImV4cCI6MjA5MjYyNjM3NX0.FFAT4-Dz4zFsvsCL0rC1AAY2DvEC4ohH9xWJfzLXffk"
+import urllib.request as _urlreq
+import threading as _thread
+
+
+def log_to_supabase(payload: dict, code: str):
+    """Loga voucher emitido no Supabase (fire-and-forget)."""
+    def _send():
+        try:
+            body = json.dumps({
+                "code": code,
+                "type": payload.get("type", ""),
+                "title": payload.get("title", ""),
+                "guest_name": payload.get("name") or None,
+                "guest_room": payload.get("room") or None,
+                "reserva": payload.get("reserva") or None,
+                "validade": payload.get("validade") or None,
+                "emitted_by": "reservas",
+            }).encode("utf-8")
+            req = _urlreq.Request(
+                f"{SUPABASE_URL}/rest/v1/interno_voucher_log",
+                data=body,
+                headers={
+                    "apikey": SUPABASE_ANON,
+                    "Authorization": f"Bearer {SUPABASE_ANON}",
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal",
+                },
+                method="POST",
+            )
+            _urlreq.urlopen(req, timeout=8).read()
+        except Exception as e:
+            print(f"[log] falhou: {e}")
+    _thread.Thread(target=_send, daemon=True).start()
+
 ESC_INIT = b"\x1b\x40"
 ESC_CENTER = b"\x1b\x61\x01"
 ESC_LEFT = b"\x1b\x61\x00"
@@ -481,6 +518,8 @@ class Handler(BaseHTTPRequestHandler):
             ok, msg = send_pdf_to_printer(pdf_path)
             if not ok:
                 return self._json(500, {"ok": False, "error": msg})
+            # Log no Supabase (não bloqueia resposta)
+            log_to_supabase(payload, payload.get("code", "—"))
             return self._json(200, {"ok": True, "code": payload.get("code"), "msg": msg})
         except Exception as e:
             return self._json(500, {"ok": False, "error": str(e)})
