@@ -266,7 +266,7 @@ def build_voucher_html(payload: dict) -> str:
     show_border = True
     carimbo_h = "30mm" if orientation == "vertical" else "18mm"
     # Vertical é estreito (72mm) — título precisa ser menor pra caber sem cortar.
-    title_size = "7.5mm" if orientation == "vertical" else "9mm"
+    title_size = "10mm" if orientation == "vertical" else "11mm"
 
     # Logo Esmeralda (PNG) — base64 inline pra Chrome renderizar
     LOGO_PNG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo-esmeralda.png")
@@ -277,11 +277,14 @@ def build_voucher_html(payload: dict) -> str:
 
     return f"""<!doctype html>
 <html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@16..72,400;16..72,500;16..72,600&display=swap" rel="stylesheet">
 <style>
   @page {{ size: {page_w} {page_h}; margin: 0; }}
   * {{ box-sizing: border-box; }}
   html, body {{ width: {page_w}; height: {page_h}; margin:0; padding:0; background:#fff; color:#000;
-                font-family: Georgia, "Times New Roman", serif; overflow: hidden; }}
+                font-family: "Hanken Grotesk", Arial, Helvetica, sans-serif; overflow: hidden; }}
   .frame {{
     width: {page_w}; height: {page_h};
     padding: {frame_pad};
@@ -333,7 +336,7 @@ def build_voucher_html(payload: dict) -> str:
   }}
   .code-wrap {{ text-align: center; }}
   .lbl-code {{
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Hanken Grotesk", Arial, Helvetica, sans-serif;
     font-size: 2.1mm;
     text-transform: uppercase;
     letter-spacing: 0.3mm;
@@ -353,7 +356,7 @@ def build_voucher_html(payload: dict) -> str:
     justify-content: center;
   }}
   .carimbo-hint {{
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Hanken Grotesk", Arial, Helvetica, sans-serif;
     font-size: 2mm;
     color: #999;
     letter-spacing: 0.2mm;
@@ -371,9 +374,9 @@ def build_voucher_html(payload: dict) -> str:
     margin: 0 auto 0.5mm;
   }}
   .logo-hotel .hotel-name {{
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "Newsreader", Georgia, "Times New Roman", serif;
     font-size: 3mm;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.4mm;
     color: #000;
   }}
@@ -381,24 +384,26 @@ def build_voucher_html(payload: dict) -> str:
   .icon svg {{ width: 9mm; height: 9mm; }}
   .title {{
     text-align: center;
-    font-family: "Brush Script MT", "Lucida Handwriting", "Apple Chancery", cursive;
-    font-style: italic;
+    font-family: "Newsreader", Georgia, "Times New Roman", serif;
+    font-style: normal;
+    font-weight: 600;
     font-size: {title_size};
-    line-height: 1.8;       /* leading bem generoso pra não cortar topo dos glifos */
-    padding-top: 6mm;        /* respiro extra acima */
-    margin: 0 0 1mm;
+    line-height: 1.15;
+    padding-top: 4mm;
+    margin: 0 0 2mm;
     flex-shrink: 0;
+    letter-spacing: -0.2mm;
   }}
   .desc {{
     text-align: center;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Hanken Grotesk", Arial, Helvetica, sans-serif;
     font-size: 2.6mm;
     line-height: 1.32;
     margin: 0;
   }}
   .welcome-desc {{
     text-align: center;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Hanken Grotesk", Arial, Helvetica, sans-serif;
     font-size: 3mm;
     line-height: 1.35;
     margin: 0;
@@ -407,7 +412,7 @@ def build_voucher_html(payload: dict) -> str:
     display: flex;
     justify-content: center;
     gap: 6mm;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Hanken Grotesk", Arial, Helvetica, sans-serif;
     font-size: 3.5mm;
     font-weight: 900;
     margin: 0 0 1.5mm;
@@ -420,7 +425,7 @@ def build_voucher_html(payload: dict) -> str:
     border-radius: 0.6mm;
   }}
   .rules {{
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Hanken Grotesk", Arial, Helvetica, sans-serif;
     font-size: 2.1mm;
     line-height: 1.3;
     text-align: center;
@@ -432,7 +437,7 @@ def build_voucher_html(payload: dict) -> str:
     display: flex;
     flex-direction: column;
     align-items: center;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Hanken Grotesk", Arial, Helvetica, sans-serif;
     font-size: 2.7mm;
     line-height: 1.5;
     overflow: hidden;
@@ -453,7 +458,7 @@ def build_voucher_html(payload: dict) -> str:
   }}
   .code {{
     text-align: center;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Hanken Grotesk", Arial, Helvetica, sans-serif;
     font-weight: 900;
     font-size: 7.5mm;
     letter-spacing: 0.5mm;
@@ -462,7 +467,7 @@ def build_voucher_html(payload: dict) -> str:
   }}
   .footer {{
     text-align: center;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Hanken Grotesk", Arial, Helvetica, sans-serif;
     font-weight: 900;
     font-size: 2.5mm;
     letter-spacing: 0.1mm;
