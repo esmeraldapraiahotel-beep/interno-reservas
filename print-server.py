@@ -535,26 +535,57 @@ def _find_sumatra() -> "str | None":
     return next((p for p in candidates if p and os.path.exists(p)), None)
 
 
-def html_to_pdf(html: str, pdf_path: str) -> bool:
-    """Renderiza HTML em PDF via Chrome headless. Cross-platform."""
+def html_to_pdf(html: str, pdf_path: str) -> tuple[bool, str]:
+    """Renderiza HTML em PDF via Chrome headless. Cross-platform.
+    Retorna (ok, msg). msg contem o erro do Chrome quando falha.
+    """
     chrome = _find_chrome()
     if not chrome:
-        return False
+        return False, "Chrome/Edge nao encontrado no PC"
     html_path = pdf_path.replace(".pdf", ".html")
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
     file_url = "file:///" + html_path.replace("\\", "/") if IS_WINDOWS else "file://" + html_path
-    cmd = [
-        chrome, "--headless", "--disable-gpu", "--no-pdf-header-footer",
+
+    # Tenta primeiro --headless=new (Chrome 109+), depois cai pro antigo.
+    # Em Windows com Chrome moderno, --headless antigo pode dar exit code 21
+    # ou falha silenciosa.
+    common = [
+        "--disable-gpu",
+        "--no-sandbox",
+        "--disable-extensions",
+        "--no-pdf-header-footer",
         "--print-to-pdf-no-header",
         f"--print-to-pdf={pdf_path}",
-        file_url,
     ]
-    try:
-        subprocess.run(cmd, capture_output=True, timeout=30)
-        return os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0
-    except subprocess.TimeoutExpired:
-        return False
+    if IS_WINDOWS:
+        # user-data-dir limpa evita problemas de profile/lock
+        import tempfile as _tf
+        tmp_profile = _tf.mkdtemp(prefix="chrome-voucher-")
+        common.append(f"--user-data-dir={tmp_profile}")
+
+    last_err = ""
+    for mode in ("--headless=new", "--headless"):
+        # remove PDF anterior pra teste limpo
+        if os.path.exists(pdf_path):
+            try: os.remove(pdf_path)
+            except: pass
+        cmd = [chrome, mode] + common + [file_url]
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        except subprocess.TimeoutExpired:
+            last_err = "timeout (30s) renderizando o PDF"
+            continue
+        except Exception as e:
+            last_err = f"erro ao chamar Chrome: {e}"
+            continue
+        if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
+            return True, f"ok ({mode})"
+        # falhou
+        err = (r.stderr or "").strip() or (r.stdout or "").strip() or f"exit code {r.returncode}"
+        last_err = f"{mode}: {err[:300]}"
+
+    return False, last_err or "Chrome rodou mas nao gerou PDF"
 
 
 def send_pdf_to_printer(pdf_path: str) -> tuple[bool, str]:
@@ -772,9 +803,9 @@ class Handler(BaseHTTPRequestHandler):
             pdf_path = f.name
         try:
             html = build_voucher_html(payload)
-            ok = html_to_pdf(html, pdf_path)
+            ok, pdf_msg = html_to_pdf(html, pdf_path)
             if not ok:
-                return self._json(500, {"ok": False, "error": "html_to_pdf_failed"})
+                return self._json(500, {"ok": False, "error": f"html_to_pdf_failed: {pdf_msg}"})
             ok, msg = send_pdf_to_printer(pdf_path)
             if not ok:
                 return self._json(500, {"ok": False, "error": msg})
