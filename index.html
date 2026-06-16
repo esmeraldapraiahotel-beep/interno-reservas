@@ -389,6 +389,11 @@
 
     <div id="preview-area"></div>
 
+    <label id="test-mode-row" style="display:flex;align-items:center;gap:8px;margin:10px 0 12px;cursor:pointer;user-select:none;font-size:14px;color:#5c4836">
+      <input type="checkbox" id="f-test-mode" style="width:18px;height:18px;cursor:pointer;accent-color:#5c4836">
+      <span><strong>Impressão de teste</strong> — não conta no dashboard</span>
+    </label>
+
     <button class="btn" id="btn-print" disabled>🖨️ Imprimir voucher</button>
   </div>
 
@@ -609,10 +614,15 @@ function updateAll() {
     return;
   }
   const total = computeVoucherCount();
+  const isTest = $("f-test-mode").checked;
   btnPrint.disabled = isWelcome ? false : total === 0;
+  const icon = isTest ? "🧪" : "🖨️";
+  const label = isTest ? "teste" : "voucher";
   btnPrint.textContent = total > 1
-    ? `🖨️ Imprimir ${total} vouchers`
-    : "🖨️ Imprimir voucher";
+    ? `${icon} Imprimir ${total} ${isTest ? "testes" : "vouchers"}`
+    : `${icon} Imprimir ${label}`;
+  // Visual: amarelado quando em modo teste
+  btnPrint.style.background = isTest ? "#C49A2D" : "";
 }
 
 function renderPickList() {
@@ -794,6 +804,8 @@ async function doPrint() {
   const t = VOUCHER_TYPES[sel.value];
   if (!t) return;
 
+  const isTest = $("f-test-mode").checked;
+
   // Welcome drink: 1 voucher único sem dados
   if (!t.requires_guest) {
     btnPrint.disabled = true;
@@ -803,6 +815,7 @@ async function doPrint() {
         type: sel.value, title: t.title, subtitle: t.subtitle, description: t.description,
         code: generateCode(sel.value), issued_at: new Date().toISOString(),
         orientation: $("orientation").value || "vertical",
+        is_test: isTest,
       });
       setAlert("✓ Voucher Welcome Drink impresso.", "ok", true);
     } catch (e) {
@@ -842,6 +855,7 @@ async function doPrint() {
         validade: validade,
         code: generateCode(sel.value),
         issued_at: new Date().toISOString(),
+        is_test: isTest,
         extra_label: t.extra_field?.label || "Validade",
         orientation: $("orientation").value || "vertical",
       };
@@ -869,6 +883,9 @@ btnPrint.addEventListener("click", doPrint);
 // Manual edit do nome/quarto/reserva: nada especial
 ["f-name", "f-room", "f-reserva", "f-validade"].forEach((id) =>
   $(id).addEventListener("input", () => updateAll()));
+
+// Modo teste: atualiza visual do botao
+$("f-test-mode").addEventListener("change", () => updateAll());
 
 // ─── Printer health ────────────────────────────────────────
 async function pingPrinter() {

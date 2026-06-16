@@ -879,9 +879,15 @@ class Handler(BaseHTTPRequestHandler):
             ok, msg = send_pdf_to_printer(pdf_path)
             if not ok:
                 return self._json(500, {"ok": False, "error": msg})
-            # Log no Supabase (não bloqueia resposta)
-            log_to_supabase(payload, payload.get("code", "—"))
-            return self._json(200, {"ok": True, "code": payload.get("code"), "msg": msg})
+            # Log no Supabase (não bloqueia resposta).
+            # Pula log quando is_test=True — impressao de teste nao
+            # contabiliza no dashboard.
+            if not payload.get("is_test"):
+                log_to_supabase(payload, payload.get("code", "—"))
+            return self._json(200, {
+                "ok": True, "code": payload.get("code"),
+                "msg": msg, "test": bool(payload.get("is_test"))
+            })
         except Exception as e:
             return self._json(500, {"ok": False, "error": str(e)})
         finally:
