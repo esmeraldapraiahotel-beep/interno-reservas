@@ -143,6 +143,37 @@ if (-not (Test-Path $SumatraPath)) {
     Write-Host "  OK SumatraPDF ja existe"
 }
 
+# --- 3.5. Google Chrome (renderiza voucher pra PDF) ---------------
+# Edge tem bugs em --headless que geram exit code 21 sem stderr.
+# Chrome eh muito mais confiavel pra essa tarefa. Instala se nao tiver.
+Write-Host "[3.5/8] Verificando Google Chrome..."
+$chromePaths = @(
+    "${env:PROGRAMFILES}\Google\Chrome\Application\chrome.exe",
+    "${env:PROGRAMFILES(X86)}\Google\Chrome\Application\chrome.exe",
+    "${env:LOCALAPPDATA}\Google\Chrome\Application\chrome.exe"
+)
+$chromeFound = $chromePaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $chromeFound) {
+    Write-Host "  Chrome nao encontrado. Instalando via winget..." -ForegroundColor Yellow
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    if ($winget) {
+        $prev = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        try {
+            & winget install --id Google.Chrome -e --accept-source-agreements --accept-package-agreements --silent 2>&1 | Out-Host
+            Write-Host "  OK Chrome instalado"
+        } catch {
+            Write-Host "  AVISO: nao consegui instalar Chrome via winget. Baixe manualmente em https://chrome.com" -ForegroundColor Yellow
+        }
+        $ErrorActionPreference = $prev
+    } else {
+        Write-Host "  AVISO: winget indisponivel. Baixe Chrome em https://chrome.com" -ForegroundColor Yellow
+        Start-Process "https://chrome.com"
+    }
+} else {
+    Write-Host "  OK Chrome ja instalado: $chromeFound"
+}
+
 # --- 4. Procura impressora ---------------------------------------
 Write-Host "[4/8] Procurando impressora termica..."
 # Get-Printer requer o modulo PrintManagement (vem no Windows 8+)

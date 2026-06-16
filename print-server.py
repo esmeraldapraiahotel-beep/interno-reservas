@@ -537,55 +537,75 @@ def _find_sumatra() -> "str | None":
 
 def html_to_pdf(html: str, pdf_path: str) -> tuple[bool, str]:
     """Renderiza HTML em PDF via Chrome headless. Cross-platform.
-    Retorna (ok, msg). msg contem o erro do Chrome quando falha.
+    Retorna (ok, msg). msg contem o erro detalhado quando falha.
+
+    Estrategia Windows:
+      - Salva o HTML numa pasta FIXA dentro do projeto (nao temp do Windows,
+        que pode ter restricoes de antivirus / SmartScreen no file://).
+      - Usa flag set MINIMO + --allow-file-access-from-files.
+      - Tenta --headless=new, depois --headless (legacy).
+      - Acumula erros das 2 tentativas pra dar feedback completo.
     """
     chrome = _find_chrome()
     if not chrome:
-        return False, "Chrome/Edge nao encontrado no PC"
-    html_path = pdf_path.replace(".pdf", ".html")
+        return False, "Chrome/Edge nao encontrado no PC. Instale o Chrome em chrome.com."
+
+    # Em Windows, escreve o HTML numa pasta fixa do projeto pra evitar
+    # bloqueio de antivirus/SmartScreen no file:// do %TEMP%.
+    if IS_WINDOWS:
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        work_dir = os.path.join(project_dir, "_render")
+        os.makedirs(work_dir, exist_ok=True)
+        # nome de arquivo determinístico (limpa renderizacoes antigas)
+        import time as _t
+        stamp = str(int(_t.time() * 1000))
+        html_path = os.path.join(work_dir, f"voucher-{stamp}.html")
+        pdf_path = os.path.join(work_dir, f"voucher-{stamp}.pdf")
+    else:
+        html_path = pdf_path.replace(".pdf", ".html")
+
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
     file_url = "file:///" + html_path.replace("\\", "/") if IS_WINDOWS else "file://" + html_path
 
-    # Tenta primeiro --headless=new (Chrome 109+), depois cai pro antigo.
-    # Em Windows com Chrome moderno, --headless antigo pode dar exit code 21
-    # ou falha silenciosa.
-    common = [
+    # Flag set MINIMO — Chrome moderno detesta --no-sandbox + --user-data-dir
+    # combinado. Os flags abaixo sao os comprovadamente seguros.
+    base_flags = [
         "--disable-gpu",
-        "--no-sandbox",
-        "--disable-extensions",
         "--no-pdf-header-footer",
-        "--print-to-pdf-no-header",
+        "--allow-file-access-from-files",
         f"--print-to-pdf={pdf_path}",
     ]
-    if IS_WINDOWS:
-        # user-data-dir limpa evita problemas de profile/lock
-        import tempfile as _tf
-        tmp_profile = _tf.mkdtemp(prefix="chrome-voucher-")
-        common.append(f"--user-data-dir={tmp_profile}")
 
-    last_err = ""
+    errors = []
     for mode in ("--headless=new", "--headless"):
-        # remove PDF anterior pra teste limpo
+        # remove PDF anterior pra ter certeza que foi gerado AGORA
         if os.path.exists(pdf_path):
             try: os.remove(pdf_path)
-            except: pass
-        cmd = [chrome, mode] + common + [file_url]
+            except Exception: pass
+
+        cmd = [chrome, mode] + base_flags + [file_url]
         try:
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         except subprocess.TimeoutExpired:
-            last_err = "timeout (30s) renderizando o PDF"
+            errors.append(f"{mode}: timeout 60s")
             continue
         except Exception as e:
-            last_err = f"erro ao chamar Chrome: {e}"
+            errors.append(f"{mode}: erro ao chamar Chrome ({e})")
             continue
-        if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
-            return True, f"ok ({mode})"
-        # falhou
-        err = (r.stderr or "").strip() or (r.stdout or "").strip() or f"exit code {r.returncode}"
-        last_err = f"{mode}: {err[:300]}"
 
-    return False, last_err or "Chrome rodou mas nao gerou PDF"
+        if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
+            # devolve o pdf_path real (pode ter mudado em Windows)
+            return True, pdf_path
+
+        # falhou — captura erro
+        err = (r.stderr or "").strip() or (r.stdout or "").strip()
+        if not err:
+            err = f"exit code {r.returncode} (sem stderr)"
+        errors.append(f"{mode}: {err[:200]}")
+
+    using = "Chrome" if "chrome.exe" in chrome.lower() or "Chrome" in chrome else "Edge"
+    return False, f"{using} nao gerou PDF. {' | '.join(errors)}"
 
 
 def send_pdf_to_printer(pdf_path: str) -> tuple[bool, str]:
@@ -597,27 +617,42 @@ def send_pdf_to_printer(pdf_path: str) -> tuple[bool, str]:
         sumatra = _find_sumatra()
         if sumatra:
             try:
-                r = subprocess.run(
-                    [sumatra, "-print-to", PRINTER, "-print-settings", "fit", "-silent", pdf_path],
-                    capture_output=True, text=True, timeout=20,
-                )
-                if r.returncode == 0:
-                    return True, "ok (SumatraPDF)"
-                return False, f"SumatraPDF falhou: {r.stderr.strip() or r.stdout.strip()}"
+                # Tenta diferentes settings — algumas versoes do SumatraPDF
+                # nao gostam de "fit", outras precisam "noscale,paper=A4"
+                attempts = [
+                    ["-print-to", PRINTER, "-silent", pdf_path],
+                    ["-print-to", PRINTER, "-print-settings", "fit", "-silent", pdf_path],
+                    ["-print-to", PRINTER, "-print-settings", "noscale", "-silent", pdf_path],
+                ]
+                last_err = ""
+                for args in attempts:
+                    r = subprocess.run([sumatra] + args, capture_output=True, text=True, timeout=30)
+                    if r.returncode == 0:
+                        return True, "ok (SumatraPDF)"
+                    last_err = (r.stderr or r.stdout or "").strip() or f"exit {r.returncode}"
+                return False, f"SumatraPDF falhou: {last_err[:200]}"
             except Exception as e:
-                return False, str(e)
-        # Fallback PowerShell — depende do reader default do Windows
+                return False, f"SumatraPDF erro: {e}"
+        # Fallback PowerShell — depende do reader default do Windows.
+        # AVISO: se nao tiver reader default, vai abrir uma janela ou falhar.
         try:
+            # Escape do path pra evitar problemas com aspas
+            safe_path = pdf_path.replace("'", "''")
+            safe_printer = PRINTER.replace("'", "''")
             ps = (
-                f"$pdf = '{pdf_path}'; "
-                f"Start-Process -FilePath $pdf -Verb PrintTo -ArgumentList '\"{PRINTER}\"' -WindowStyle Hidden -Wait"
+                f"$pdf = '{safe_path}'; "
+                f"Start-Process -FilePath $pdf -Verb PrintTo "
+                f"-ArgumentList '\"{safe_printer}\"' -WindowStyle Hidden -Wait"
             )
-            r = subprocess.run(["powershell", "-Command", ps], capture_output=True, text=True, timeout=20)
+            r = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+                             capture_output=True, text=True, timeout=30)
             if r.returncode == 0:
                 return True, "ok (PowerShell)"
-            return False, f"PowerShell falhou: {r.stderr.strip()}"
+            err_msg = (r.stderr or r.stdout or "").strip()[:200]
+            return False, (f"SumatraPDF nao encontrado e PowerShell falhou: {err_msg}. "
+                           "Solucao: rode o setup novamente pra baixar o SumatraPDF.")
         except Exception as e:
-            return False, str(e)
+            return False, f"PowerShell erro: {e}"
     # macOS / Linux — CUPS lp
     try:
         r = subprocess.run(
@@ -742,16 +777,47 @@ def send_to_printer(escpos_bytes: bytes) -> tuple[bool, str]:
 def is_printer_available() -> bool:
     try:
         if IS_WINDOWS:
+            # Get-Printer pode estourar se o nome tiver aspas — escapa
+            safe = PRINTER.replace("'", "''")
             r = subprocess.run(
-                ["powershell", "-Command", f"(Get-Printer -Name '{PRINTER}').PrinterStatus"],
-                capture_output=True, text=True, timeout=5,
+                ["powershell", "-NoProfile", "-Command",
+                 f"$p = Get-Printer -Name '{safe}' -ErrorAction SilentlyContinue; if ($p) {{ $p.PrinterStatus }} else {{ 'notfound' }}"],
+                capture_output=True, text=True, timeout=10,
             )
             out = r.stdout.strip().lower()
-            return bool(out) and "error" not in out and "offline" not in out
+            if not out or "notfound" in out:
+                return False
+            # 0=Other, 3=Idle, 4=Printing, 5=Warmup, 6=StoppedPrinting
+            # 'normal'/'idle'/'printing' = ok; 'error'/'offline'/'paperjam' = not ok
+            bad = ["error", "offline", "paperjam", "papermissing", "tonerlow"]
+            return not any(b in out for b in bad)
         r = subprocess.run(["lpstat", "-p", PRINTER], capture_output=True, text=True, timeout=5)
         return "ociosa" in r.stdout or "idle" in r.stdout.lower() or "imprimindo" in r.stdout
     except Exception:
         return False
+
+
+def _cleanup_render_dir():
+    """Mantem so os 20 PDFs/HTMLs mais recentes no _render/ pra nao
+    encher o disco. Roda em cada print."""
+    if not IS_WINDOWS:
+        return
+    try:
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        work_dir = os.path.join(project_dir, "_render")
+        if not os.path.isdir(work_dir):
+            return
+        files = []
+        for f in os.listdir(work_dir):
+            p = os.path.join(work_dir, f)
+            if os.path.isfile(p):
+                files.append((os.path.getmtime(p), p))
+        files.sort(reverse=True)
+        for _, p in files[40:]:  # 40 = 20 vouchers * 2 arquivos (html+pdf)
+            try: os.remove(p)
+            except Exception: pass
+    except Exception:
+        pass
 
 
 # ─── HTTP Handler ────────────────────────────────────────────
@@ -806,6 +872,10 @@ class Handler(BaseHTTPRequestHandler):
             ok, pdf_msg = html_to_pdf(html, pdf_path)
             if not ok:
                 return self._json(500, {"ok": False, "error": f"html_to_pdf_failed: {pdf_msg}"})
+            # Em Windows o html_to_pdf escreve em _render/ — usa o path real
+            if IS_WINDOWS and pdf_msg.endswith(".pdf"):
+                pdf_path = pdf_msg
+            _cleanup_render_dir()
             ok, msg = send_pdf_to_printer(pdf_path)
             if not ok:
                 return self._json(500, {"ok": False, "error": msg})
