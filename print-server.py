@@ -500,7 +500,7 @@ def build_voucher_html(payload: dict) -> str:
 """
 
 
-def _find_chrome() -> str | None:
+def _find_chrome() -> "str | None":
     """Acha Chrome/Edge/Brave em macOS ou Windows."""
     if IS_WINDOWS:
         env = os.environ
@@ -521,7 +521,7 @@ def _find_chrome() -> str | None:
     return next((p for p in candidates if p and os.path.exists(p)), None)
 
 
-def _find_sumatra() -> str | None:
+def _find_sumatra() -> "str | None":
     """Acha SumatraPDF no Windows (preferencial pra imprimir PDF silenciosamente)."""
     if not IS_WINDOWS:
         return None
