@@ -167,83 +167,55 @@ FOOTER_BY_TYPE = {
 
 
 def build_voucher_html(payload: dict) -> str:
-    """Gera HTML do voucher no formato landscape, estilo cartão clássico."""
+    """Gera HTML do voucher no estilo da preview Hub Reservas:
+       topo (logo + hotel + VOUCHER INTERNO) → título + código → rows
+       (hóspede/quarto/reserva/validade) → carimbo → regulamento → rodapé.
+    """
     vtype = payload.get("type", "")
     code = payload.get("code", "—")
     title = payload.get("title", "Voucher")
-    # Quebra a descrição em ate N linhas. Se a descricao tiver \n
-    # explicito, respeita. Se nao, faz split em fim de frase (. ! ?) +
-    # espaco — ate 2 linhas (legado).
-    import re as _re
+
+    # Descrição vira REGULAMENTO no rodapé. Aceita \n explícito.
     _desc_raw = payload.get("description") or ""
     if "\n" in _desc_raw:
-        _lines = [l.strip() for l in _desc_raw.split("\n") if l.strip()]
-        desc_html = "<br>".join(_lines)
+        regulamento_html = "<br>".join(l.strip() for l in _desc_raw.split("\n") if l.strip())
     else:
-        _parts = _re.split(r"(?<=[.!?])\s+", _desc_raw, maxsplit=1)
-        desc_html = _parts[0] + (("<br>" + _parts[1]) if len(_parts) > 1 else "")
-    desc_line_1 = desc_html  # legado (template usa desc_line_1)
-    desc_line_2 = ""
-    # Campos vazios viram linha pra preencher à caneta no balcão.
-    # Underscore HTML não renderiza linha contínua, então uso uma borda CSS.
-    BLANK_LINE = '<span class="blank"></span>'
-    def _v(x):
-        return x if (x and str(x).strip()) else BLANK_LINE
-    name = _v(payload.get("name"))
-    room = _v(payload.get("room"))
-    reserva = _v(payload.get("reserva"))
-    validade = _v(payload.get("validade"))
+        regulamento_html = _desc_raw
 
-    icon_svg = ICONS_BY_TYPE.get(vtype, ICONS_BY_TYPE.get("gelato"))
-    footer = FOOTER_BY_TYPE.get(vtype, "ESMERALDA PRAIA HOTEL")
+    name = (payload.get("name") or "").strip()
+    room = (payload.get("room") or "").strip()
+    reserva = (payload.get("reserva") or "").strip()
+    validade = (payload.get("validade") or "").strip()
 
-    # Linha de info CENTRALIZADA: 2 colunas que ficam juntas no centro.
-    extra_label = payload.get("extra_label") or "Válido até"
-    info_block = ""
-    if vtype != "welcome_drink":
-        info_block = f"""
-        <div class="info">
-          <div class="info-col">
-            <div><span class='lbl'>Hóspede:</span> {name}</div>
-            <div><span class='lbl'>Reserva:</span> {reserva}</div>
-          </div>
-          <div class="info-col">
-            <div><span class='lbl'>Quarto:</span> {room}</div>
-            <div><span class='lbl'>{extra_label}:</span> {validade}</div>
-          </div>
-        </div>
-        """
+    def row(lbl, val):
+        """Linha de info — se val vazio, mostra pontilhado pra preencher à caneta."""
+        val_html = (f'<span class="rv">{val}</span>'
+                    if val else '<span class="rv blank"></span>')
+        return f'<div class="row"><span class="rl">{lbl}</span>{val_html}</div>'
 
-    # Welcome drink: sem dados pessoais, descrição mais longa
+    extra_label = payload.get("extra_label") or "Validade"
+
+    # Welcome drink: sem rows de hóspede (não tem dados pessoais)
     is_welcome = vtype == "welcome_drink"
-    welcome_extra = ""
-    if is_welcome:
-        welcome_extra = """
-        <div class="welcome-desc">
-            Prezado Hóspede, seja muito bem-vindo ao Esmeralda Praia Hotel!<br>
-            Te oferecemos um delicioso drink de boas-vindas para brindar à sua chegada.<br><br>
-            <b>Horário para retirada dos drinks: 17h30 às 19h30.</b>
-        </div>
-        """
-
-    # Hóspede Raiz: checkboxes (Gelato/Drink) ANTES do código (atendente marca
-    # à caneta) e regulamento DEPOIS, no rodapé. Separados em 2 blocos.
     is_raiz = vtype == "hospede_raiz"
-    raiz_choices = ""
-    raiz_extra = ""
-    if is_raiz:
-        raiz_choices = """
-        <div class="choice-row">
-          <div class="choice"><span class="checkbox"></span> Gelato</div>
-          <div class="choice"><span class="checkbox"></span> Drink</div>
-        </div>
-        """
-        raiz_extra = """
-        <div class="rules">
-          Vale um drink: Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores) ou um vale Gelato tamanho P. 1 por pessoa do apartamento por dia durante o período da sua hospedagem. Este voucher é intransferível e de uso único.<br><br>
-          <b>Horário para retirada dos drinks: 17h30 às 19h30.</b>
-        </div>
-        """
+
+    if is_welcome:
+        rows_block = ""
+    elif is_raiz:
+        # Hóspede Raiz: linhas de info + checkboxes
+        rows_block = (
+            row("Hóspede", name) + row("Quarto", room) +
+            row("Reserva", reserva) + row(extra_label, validade) +
+            '''<div class="choice-row">
+                 <div class="choice"><span class="checkbox"></span> Gelato</div>
+                 <div class="choice"><span class="checkbox"></span> Drink</div>
+               </div>'''
+        )
+    else:
+        rows_block = (
+            row("Hóspede", name) + row("Quarto", room) +
+            row("Reserva", reserva) + row(extra_label, validade)
+        )
 
     # Orientação: 'horizontal' (default, 132×72mm) ou 'vertical' (72×120mm,
     # economiza ~9% de papel mas usa formato com aspect ratio compatível
@@ -274,6 +246,17 @@ def build_voucher_html(payload: dict) -> str:
     if os.path.exists(LOGO_PNG_PATH):
         with open(LOGO_PNG_PATH, "rb") as f:
             logo_esmeralda_b64 = base64.b64encode(f.read()).decode("ascii")
+
+    # Logo Esmeralda do projeto (PNG) — base64 inline (Chrome offline-friendly)
+    LOGO_PNG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo-esmeralda-novo.png")
+    if not os.path.exists(LOGO_PNG_PATH):
+        LOGO_PNG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo-esmeralda.png")
+    logo_b64 = ""
+    if os.path.exists(LOGO_PNG_PATH):
+        with open(LOGO_PNG_PATH, "rb") as f:
+            logo_b64 = base64.b64encode(f.read()).decode("ascii")
+    logo_img = (f'<img src="data:image/png;base64,{logo_b64}" alt="">'
+                if logo_b64 else "")
 
     return f"""<!doctype html>
 <html><head><meta charset="utf-8">
@@ -475,31 +458,129 @@ def build_voucher_html(payload: dict) -> str:
     padding-top: 1mm;
   }}
 </style>
+  /* ─── Novo layout estilo preview ─── */
+  .v-frame {{
+    width: {page_w}; height: {page_h};
+    padding: 6mm 6mm 5mm;
+    display: flex; flex-direction: column;
+    background: #fff;
+  }}
+  .v-top {{
+    text-align: center;
+    padding-bottom: 4mm;
+    border-bottom: 0.3mm dashed #999;
+  }}
+  .v-top img {{ width: 9mm; height: auto; display: block; margin: 0 auto 1.5mm; }}
+  .v-top .hotel {{
+    font-family: "Newsreader", Georgia, serif;
+    font-size: 4.2mm; font-weight: 600;
+    letter-spacing: 0.3mm; margin: 0;
+  }}
+  .v-top .kind {{
+    font-size: 2.2mm; letter-spacing: 0.8mm;
+    text-transform: uppercase; color: #666;
+    font-weight: 700; margin: 1mm 0 0;
+  }}
+  .v-mid {{
+    text-align: center;
+    padding: 5mm 0 4mm;
+    border-bottom: 0.3mm dashed #999;
+  }}
+  .v-mid .v-title {{
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 600;
+    font-size: {title_size};
+    line-height: 1.1;
+    margin: 0;
+    letter-spacing: -0.2mm;
+  }}
+  .v-mid .v-code {{
+    font-family: ui-monospace, "Courier New", monospace;
+    font-size: 4.2mm; font-weight: 700;
+    letter-spacing: 0.5mm;
+    margin: 3mm 0 0; color: #2C1D12;
+  }}
+  .v-rows {{
+    padding: 4mm 0;
+    display: flex; flex-direction: column; gap: 2.5mm;
+  }}
+  .v-rows .row {{
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 3mm;
+  }}
+  .v-rows .rl {{
+    font-size: 2.4mm; letter-spacing: 0.3mm;
+    text-transform: uppercase; color: #666; font-weight: 700;
+  }}
+  .v-rows .rv {{
+    font-size: 3mm; font-weight: 600; color: #000;
+    text-align: right; max-width: 60%;
+    word-break: break-word;
+  }}
+  .v-rows .rv.blank {{
+    flex: 1; height: 0.3mm; border-bottom: 0.3mm dotted #666;
+    margin-left: 4mm; max-width: 32mm; min-width: 18mm;
+  }}
+  .choice-row {{
+    display: flex; justify-content: center; gap: 8mm;
+    margin-top: 2mm; padding-top: 2mm;
+    border-top: 0.3mm dashed #ccc;
+    font-size: 3.2mm; font-weight: 700;
+  }}
+  .choice {{ display: flex; align-items: center; gap: 1.5mm; }}
+  .checkbox {{
+    display: inline-block; width: 3.5mm; height: 3.5mm;
+    border: 0.5mm solid #000; border-radius: 0.6mm;
+  }}
+  .v-stamp {{
+    border-top: 0.3mm dashed #999;
+    padding-top: 3mm;
+    text-align: center;
+  }}
+  .v-stamp .area {{
+    height: {carimbo_h};
+    border: 0.2mm dashed #aaa;
+    border-radius: 1.5mm;
+    margin: 0 4mm;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2mm; color: #aaa; letter-spacing: 0.2mm;
+  }}
+  .v-rules {{
+    border-top: 0.3mm dashed #999;
+    margin-top: 3mm; padding-top: 3mm;
+    text-align: center;
+    font-size: 2.4mm; line-height: 1.4; color: #222;
+  }}
+  .v-rules b {{ color: #000; }}
+  .v-foot {{
+    margin-top: auto; padding-top: 3mm;
+    border-top: 0.3mm dashed #999;
+    text-align: center;
+    font-size: 2.1mm; color: #777; line-height: 1.5;
+    letter-spacing: 0.2mm;
+  }}
+</style>
 </head><body>
-<div class="frame">
-  <div class="border-outer">
-    <div class="border-inner">
-      <div class="title">{title}</div>
-      <div class="hr"></div>
-      {raiz_choices}
-      <div class="code-wrap">
-        <div class="code-side">
-          <div class="lbl-code">Código</div>
-          <div class="code">{code}</div>
-        </div>
-      </div>
-      {info_block}
-      <div class="carimbo-area">
-        <span class="carimbo-hint">Espaço para carimbo</span>
-      </div>
-      <div class="hr" style="margin-top:auto"></div>
-      <div class="text-side">
-        {raiz_extra if is_raiz else (welcome_extra if is_welcome else f'<div class="desc">{desc_line_1}{("<br>" + desc_line_2) if desc_line_2 else ""}</div>')}
-      </div>
-    </div>
+<div class="v-frame">
+  <div class="v-top">
+    {logo_img}
+    <p class="hotel">ESMERALDA PRAIA HOTEL</p>
+    <p class="kind">Voucher Interno</p>
   </div>
-  <div class="logo-hotel">
-    {f'<img src="data:image/png;base64,{logo_esmeralda_b64}" alt="">' if logo_esmeralda_b64 else ""}
+  <div class="v-mid">
+    <p class="v-title">{title}</p>
+    <p class="v-code">{code}</p>
+  </div>
+  <div class="v-rows">
+    {rows_block}
+  </div>
+  <div class="v-stamp">
+    <div class="area">Espaço para carimbo</div>
+  </div>
+  {f'<div class="v-rules">{regulamento_html}</div>' if regulamento_html else ''}
+  <div class="v-foot">
+    Apresente este voucher no local.<br>
+    Praia de Pipa · Tibau do Sul/RN
   </div>
 </div>
 </body></html>
