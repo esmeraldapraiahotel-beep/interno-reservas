@@ -171,13 +171,19 @@ def build_voucher_html(payload: dict) -> str:
     vtype = payload.get("type", "")
     code = payload.get("code", "—")
     title = payload.get("title", "Voucher")
-    # Quebra a descrição em até 2 linhas — split em qualquer fim de frase
-    # (. ! ?) seguido de espaço. Permite mensagens longas com 2 sentenças.
+    # Quebra a descrição em ate N linhas. Se a descricao tiver \n
+    # explicito, respeita. Se nao, faz split em fim de frase (. ! ?) +
+    # espaco — ate 2 linhas (legado).
     import re as _re
     _desc_raw = payload.get("description") or ""
-    _parts = _re.split(r"(?<=[.!?])\s+", _desc_raw, maxsplit=1)
-    desc_line_1 = _parts[0]
-    desc_line_2 = _parts[1] if len(_parts) > 1 else ""
+    if "\n" in _desc_raw:
+        _lines = [l.strip() for l in _desc_raw.split("\n") if l.strip()]
+        desc_html = "<br>".join(_lines)
+    else:
+        _parts = _re.split(r"(?<=[.!?])\s+", _desc_raw, maxsplit=1)
+        desc_html = _parts[0] + (("<br>" + _parts[1]) if len(_parts) > 1 else "")
+    desc_line_1 = desc_html  # legado (template usa desc_line_1)
+    desc_line_2 = ""
     # Campos vazios viram linha pra preencher à caneta no balcão.
     # Underscore HTML não renderiza linha contínua, então uso uma borda CSS.
     BLANK_LINE = '<span class="blank"></span>'
@@ -233,7 +239,8 @@ def build_voucher_html(payload: dict) -> str:
         """
         raiz_extra = """
         <div class="rules">
-          Vale um drink: Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores) ou um vale Gelato tamanho P. 1 por pessoa do apartamento por dia durante o período da sua hospedagem. Este voucher é intransferível e de uso único.
+          Vale um drink: Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores) ou um vale Gelato tamanho P. 1 por pessoa do apartamento por dia durante o período da sua hospedagem. Este voucher é intransferível e de uso único.<br><br>
+          <b>Horário para retirada dos drinks: 17h30 às 19h30.</b>
         </div>
         """
 
