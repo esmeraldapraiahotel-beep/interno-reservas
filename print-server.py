@@ -223,14 +223,15 @@ def build_voucher_html(payload: dict) -> str:
     orientation = payload.get("orientation", "vertical")
     is_raiz_check = payload.get("type") == "hospede_raiz"
     if orientation == "vertical":
-        # Hóspede Raiz tem mais conteúdo e o topo cortava — mais margem nele.
-        page_w, page_h = "72mm", ("235mm" if is_raiz_check else "170mm")
+        # Sem carimbo + sem rodapé fixo, o voucher é mais curto.
+        # Raiz mantém mais altura porque tem regulamento longo + checkboxes.
+        page_w, page_h = "72mm", ("180mm" if is_raiz_check else "120mm")
     else:
         page_w, page_h = "132mm", "72mm"
 
-    # Padding do frame (vertical) — Raiz ganha 38mm de topo, comum 28mm.
+    # Padding herdado pelo layout antigo (não usado no novo .v-frame).
     if orientation == "vertical":
-        frame_pad = "80mm 2mm 12mm 2mm" if is_raiz_check else "28mm 2mm 12mm 2mm"
+        frame_pad = "8mm 2mm 6mm 2mm"
     else:
         frame_pad = "2mm"
 
@@ -546,19 +547,14 @@ def build_voucher_html(payload: dict) -> str:
     font-size: 2mm; color: #aaa; letter-spacing: 0.2mm;
   }}
   .v-rules {{
+    margin-top: auto;
     border-top: 0.3mm dashed #999;
-    margin-top: 3mm; padding-top: 3mm;
+    padding-top: 4mm;
     text-align: center;
-    font-size: 2.4mm; line-height: 1.4; color: #222;
+    font-size: 2.8mm; line-height: 1.45; color: #1a1a1a;
+    font-weight: 500;
   }}
-  .v-rules b {{ color: #000; }}
-  .v-foot {{
-    margin-top: auto; padding-top: 3mm;
-    border-top: 0.3mm dashed #999;
-    text-align: center;
-    font-size: 2.1mm; color: #777; line-height: 1.5;
-    letter-spacing: 0.2mm;
-  }}
+  .v-rules b {{ color: #000; font-weight: 700; }}
 </style>
 </head><body>
 <div class="v-frame">
@@ -574,14 +570,7 @@ def build_voucher_html(payload: dict) -> str:
   <div class="v-rows">
     {rows_block}
   </div>
-  <div class="v-stamp">
-    <div class="area">Espaço para carimbo</div>
-  </div>
   {f'<div class="v-rules">{regulamento_html}</div>' if regulamento_html else ''}
-  <div class="v-foot">
-    Apresente este voucher no local.<br>
-    Praia de Pipa · Tibau do Sul/RN
-  </div>
 </div>
 </body></html>
 """
