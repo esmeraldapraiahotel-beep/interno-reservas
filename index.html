@@ -835,7 +835,9 @@ async function doPrint() {
         subtitle: t.subtitle,
         description: t.description,
         name: `${g.nome} ${g.sobrenome || ""}`.trim(),
-        room: g.uh || $("f-room").value.trim(),
+        // Quarto SEMPRE em branco no impresso (preenchido à caneta no balcão).
+        // A tela continua mostrando o numero pra conferencia.
+        room: "",
         reserva: $("f-reserva").value.trim(),
         validade: validade,
         code: generateCode(sel.value),
