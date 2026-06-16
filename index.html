@@ -413,7 +413,8 @@
   }
   .preview-col .label {
     font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase;
-    color: var(--tan); font-weight: 700; margin: 0; align-self: flex-start;
+    color: var(--tan); font-weight: 700; margin: 0;
+    align-self: center; text-align: center;
   }
   .receipt {
     width: 300px; max-width: 100%;
@@ -911,27 +912,10 @@
       <!-- PREVIEW -->
       <div class="preview-col">
         <p class="label">Pré-visualização</p>
-        <div class="receipt">
-          <div class="top">
-            <img src="logo-esmeralda-novo.png" alt="">
-            <p class="hot">ESMERALDA PRAIA HOTEL</p>
-            <p class="kind">Voucher Interno</p>
-          </div>
-          <div class="mid">
-            <p class="tit" id="pv-tit">Selecione o tipo</p>
-            <p class="sub" id="pv-sub">A pré-visualização aparece aqui.</p>
-          </div>
-          <div class="rows">
-            <div class="r"><span class="lab">Hóspede</span><span class="val" id="pv-nome">—</span></div>
-            <div class="r"><span class="lab">Quarto</span><span class="val blank" id="pv-quarto" title="Preenchido à caneta no balcão"></span></div>
-            <div class="r"><span class="lab">Reserva</span><span class="val" id="pv-reserva">—</span></div>
-            <div class="r"><span class="lab" id="pv-validade-lab">Validade</span><span class="val" id="pv-validade">—</span></div>
-          </div>
-          <div class="bot">
-            <p>Apresente este voucher no local.<br>Praia de Pipa · Tibau do Sul/RN</p>
-          </div>
+        <div id="preview-receipts" style="display:flex;flex-direction:column;gap:18px;width:100%;align-items:center;">
+          <!-- 1 receipt por hóspede × dia (renderizado pelo JS) -->
         </div>
-        <p class="receipt-cap">Papel térmico 72mm · POS80</p>
+        <p class="receipt-cap" id="receipt-cap">Papel térmico 72mm · POS80</p>
       </div>
 
     </div>
@@ -1248,42 +1232,105 @@ function renderPickList() {
   const elegiveis = foundGuests.filter(g => !(g.crianca && t.excludes_kids));
   pickHint.textContent = `${selectedDocs.size}/${elegiveis.length} selecionado(s)${t.excludes_kids?" · crianças não entram em vouchers de drink":""}`;
 }
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+function buildReceiptHTML(t, guestName, validadeLabel, validadeVal) {
+  /* Constroi 1 receipt da preview. Footer agora eh o regulamento
+     (description do tipo de voucher) em vez do 'Apresente no local...'. */
+  const titulo = t ? t.title : "Selecione o tipo";
+  const reserva = $("f-reserva").value.trim() || "—";
+  const nome = guestName || "—";
+  const validade = validadeVal || "—";
+  // Regulamento = description (suporta \n explicito virando <br>)
+  const reg = (t && t.description)
+    ? escapeHtml(t.description).replace(/\n/g, "<br>")
+    : (t ? "" : "A pré-visualização aparece aqui.");
+  return `
+    <div class="receipt">
+      <div class="top">
+        <img src="logo-esmeralda-novo.png" alt="">
+        <p class="hot">ESMERALDA PRAIA HOTEL</p>
+        <p class="kind">Voucher Interno</p>
+      </div>
+      <div class="mid">
+        <p class="tit">${escapeHtml(titulo)}</p>
+      </div>
+      ${t && t.requires_guest ? `
+      <div class="rows">
+        <div class="r"><span class="lab">Hóspede</span><span class="val">${escapeHtml(nome)}</span></div>
+        <div class="r"><span class="lab">Quarto</span><span class="val blank" title="Preenchido à caneta no balcão"></span></div>
+        <div class="r"><span class="lab">Reserva</span><span class="val">${escapeHtml(reserva)}</span></div>
+        <div class="r"><span class="lab">${escapeHtml(validadeLabel)}</span><span class="val">${escapeHtml(validade)}</span></div>
+      </div>` : ""}
+      ${reg ? `<div class="bot"><p>${reg}</p></div>` : ""}
+    </div>`;
+}
+
 function renderPreview() {
   const t = VOUCHER_TYPES[sel.value];
+  const container = $("preview-receipts");
+  const cap = $("receipt-cap");
+  const validadeLabel = (t && t.extra_field) ? t.extra_field.label : "Validade";
+  const validadeVal = $("f-validade").value.trim();
 
-  /* Receipt mock */
-  if (!t) {
-    $("pv-tit").textContent = "Selecione o tipo";
-    $("pv-sub").textContent = "A pré-visualização aparece aqui.";
-  } else {
-    $("pv-tit").textContent = t.title;
-    $("pv-sub").textContent = t.subtitle;
+  /* Welcome / sem hóspede: 1 receipt sem nome */
+  if (!t || !t.requires_guest) {
+    const name = !t ? "" : ($("f-name").value.trim() || "");
+    container.innerHTML = buildReceiptHTML(t, name, validadeLabel, validadeVal);
+    cap.textContent = "Papel térmico 72mm · POS80";
+    previewArea.innerHTML = "";
+    return;
   }
-  const guests = selectedGuests();
-  const first = guests[0];
-  $("pv-nome").textContent = first ? `${first.nome} ${first.sobrenome||""}`.trim() : ($("f-name").value.trim() || "—");
-  // quarto sempre BLANK (preenchido a caneta)
-  $("pv-quarto").className = "val blank";
-  $("pv-reserva").textContent = $("f-reserva").value.trim() || "—";
-  if (t && t.extra_field) $("pv-validade-lab").textContent = t.extra_field.label;
-  else $("pv-validade-lab").textContent = "Validade";
-  $("pv-validade").textContent = $("f-validade").value.trim() || "—";
 
-  /* Count card */
-  if (!t || !t.requires_guest) { previewArea.innerHTML = ""; return; }
-  if (guests.length === 0) { previewArea.innerHTML = ""; return; }
+  const guests = selectedGuests();
+
+  /* Sem hóspede selecionado: mostra 1 receipt com placeholder do formulário */
+  if (guests.length === 0) {
+    const fallbackName = $("f-name").value.trim();
+    container.innerHTML = buildReceiptHTML(t, fallbackName, validadeLabel, validadeVal);
+    cap.textContent = "Papel térmico 72mm · POS80";
+    previewArea.innerHTML = "";
+    return;
+  }
+
+  /* Multi-hóspede × dias: 1 receipt por combinação */
   const days = t.daily ? diasEstadia() : [];
-  let html = `<div class="alert alert-info" style="margin:0">`;
+  const hasDays = days.length > 0;
+  const html = [];
+
+  for (const g of guests) {
+    const nome = `${g.nome} ${g.sobrenome||""}`.trim();
+    if (hasDays) {
+      for (const d of days) {
+        const v = `Válido em ${fmtDayBR(d)}`;
+        html.push(buildReceiptHTML(t, nome, validadeLabel, v));
+      }
+    } else {
+      html.push(buildReceiptHTML(t, nome, validadeLabel, validadeVal));
+    }
+  }
+  container.innerHTML = html.join("");
+
+  /* Caption: total de vouchers */
+  const total = guests.length * (hasDays ? days.length : 1);
+  cap.textContent = `${total} voucher${total!==1?"s":""} · papel térmico 72mm · POS80`;
+
+  /* Count card antigo (acima do botão imprimir) */
+  let info = `<div class="alert alert-info" style="margin:0">`;
   if (t.daily) {
     const dCount = days.length || 1;
-    html += `<strong>${guests.length * dCount} vouchers</strong> serão impressos · `;
-    html += `${dCount} dia${dCount!==1?"s":""} × ${guests.length} hóspede${guests.length!==1?"s":""}`;
-    if (days.length > 0) html += ` · ${days.map(fmtDayBR).join(" · ")}`;
+    info += `<strong>${total} vouchers</strong> serão impressos · `;
+    info += `${dCount} dia${dCount!==1?"s":""} × ${guests.length} hóspede${guests.length!==1?"s":""}`;
+    if (days.length > 0) info += ` · ${days.map(fmtDayBR).join(" · ")}`;
   } else {
-    html += `<strong>${guests.length} voucher${guests.length!==1?"s":""}</strong> · 1 por hóspede`;
+    info += `<strong>${guests.length} voucher${guests.length!==1?"s":""}</strong> · 1 por hóspede`;
   }
-  html += `</div>`;
-  previewArea.innerHTML = html;
+  info += `</div>`;
+  previewArea.innerHTML = info;
 }
 function updateAll() {
   const t = VOUCHER_TYPES[sel.value];
