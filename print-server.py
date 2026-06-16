@@ -221,7 +221,8 @@ def build_voucher_html(payload: dict) -> str:
         welcome_extra = """
         <div class="welcome-desc">
             Prezado Hóspede, seja muito bem-vindo ao Esmeralda Praia Hotel!<br>
-            Te oferecemos um delicioso drink de boas-vindas para brindar à sua chegada.
+            Te oferecemos um delicioso drink de boas-vindas para brindar à sua chegada.<br><br>
+            <b>Horário para retirada dos drinks: 17h30 às 19h30.</b>
         </div>
         """
 
