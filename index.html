@@ -1297,27 +1297,23 @@ function renderPreview() {
     return;
   }
 
-  /* Multi-hóspede × dias: 1 receipt por combinação */
+  /* Preview: 1 receipt por hóspede (independente de dias).
+     Mesmo em voucher diário, só mostramos 1 cupom por pessoa pra
+     confirmar visualmente os nomes — a impressão real expande por dias. */
   const days = t.daily ? diasEstadia() : [];
-  const hasDays = days.length > 0;
   const html = [];
-
   for (const g of guests) {
     const nome = `${g.nome} ${g.sobrenome||""}`.trim();
-    if (hasDays) {
-      for (const d of days) {
-        const v = `Válido em ${fmtDayBR(d)}`;
-        html.push(buildReceiptHTML(t, nome, validadeLabel, v));
-      }
-    } else {
-      html.push(buildReceiptHTML(t, nome, validadeLabel, validadeVal));
-    }
+    html.push(buildReceiptHTML(t, nome, validadeLabel, validadeVal));
   }
   container.innerHTML = html.join("");
 
-  /* Caption: total de vouchers */
-  const total = guests.length * (hasDays ? days.length : 1);
-  cap.textContent = `${total} voucher${total!==1?"s":""} · papel térmico 72mm · POS80`;
+  /* Caption: nº de hóspedes na preview + total que será impresso */
+  const total = guests.length * (days.length || 1);
+  const previewN = guests.length;
+  cap.textContent = total === previewN
+    ? `${previewN} voucher${previewN!==1?"s":""} · papel térmico 72mm · POS80`
+    : `${previewN} hóspede${previewN!==1?"s":""} na preview · ${total} voucher${total!==1?"s":""} serão impressos`;
 
   /* Count card antigo (acima do botão imprimir) */
   let info = `<div class="alert alert-info" style="margin:0">`;
