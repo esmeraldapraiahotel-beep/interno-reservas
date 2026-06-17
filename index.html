@@ -849,6 +849,7 @@
             <option value="passeio_pipa">Passeio Pipa</option>
             <option value="passeio_litoral_norte">Passeio Litoral Norte</option>
             <option value="vila_cvc">Vila CVC · 15% OFF</option>
+            <option value="hospede_aventureiro">Hóspede Aventureiro</option>
             <option value="hospede_raiz">Hóspede Raiz</option>
             <option value="hospede_romantico">Hóspede Romântico</option>
           </select>
@@ -1067,14 +1068,14 @@ const $ = (id) => document.getElementById(id);
 
 const VOUCHER_TYPES = {
   welcome_drink: { label:"Welcome Drink", title:"Welcome Cocktail", subtitle:"Seja muito bem-vindo!",
-    description:"Te oferecemos um delicioso drink de boas-vindas para brindar à sua chegada.\nHorário para retirada dos drinks: 17h30 às 19h30.",
+    description:"Regulamento:\n- Vale um drink (Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores), um por pessoa do apartamento por dia durante o período da sua hospedagem;\n- OU Vale um Gelato Italiano tamanho P por pessoa do apartamento por dia durante o período da sua hospedagem;\n- Este voucher é intransferível e de uso único.\nHorário para retirada dos drinks: 17h30 às 19h30.",
     requires_guest:false, daily:false, excludes_kids:true, extra_field:null },
-  gelato: { label:"Gelato Liberado", title:"Gelato Liberado", subtitle:"Use esse voucher para resgatar",
-    description:"o seu gelato italiano do dia!",
+  gelato: { label:"Gelato Liberado", title:"Gelato Liberado", subtitle:"Cortesia da casa",
+    description:"Este voucher dá direito a um gelato italiano tamanho pequeno por pessoa hospedada no apartamento, válido apenas para o dia especificado no voucher.\n• O voucher é pessoal, intransferível e único.\n• Não é acumulativo ou utilizável em dias posteriores.",
     requires_guest:true, daily:true, excludes_kids:false,
     extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false } },
   drink_liberado: { label:"Drink Liberado", title:"Drink Liberado", subtitle:"Cortesia da casa",
-    description:"Te oferecemos um delicioso drink de boas-vindas para brindar à sua chegada.\nHorário para retirada dos drinks: 17h30 às 19h30.",
+    description:"Regulamento:\n- Vale um drink (Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores), um por pessoa do apartamento por dia durante o período da sua hospedagem;\n- OU Vale um Gelato Italiano tamanho P por pessoa do apartamento por dia durante o período da sua hospedagem;\n- Este voucher é intransferível e de uso único.\nHorário para retirada dos drinks: 17h30 às 19h30.",
     requires_guest:true, daily:true, excludes_kids:true,
     extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false } },
   city_tour: { label:"City Tour", title:"City Tour", subtitle:"Passeio cortesia",
@@ -1093,8 +1094,12 @@ const VOUCHER_TYPES = {
     description:"Você ganhou 15% de desconto válido para 1 refeição no restaurante à la carte! Esse voucher é restrito a uma utilização por apartamento.",
     requires_guest:true, daily:false, excludes_kids:false,
     extra_field:{ label:"Validade", placeholder:"Durante a estadia", default_blank:false } },
+  hospede_aventureiro: { label:"Hóspede Aventureiro", title:"Hóspede Aventureiro", subtitle:"Passeio cortesia",
+    description:"Regulamento:\n- Seu passeio deve ser agendado, obrigatoriamente, no ato do seu check-in;\n- Voucher válido para resgate de um Passeio pelo Litoral Norte.\n- Passeio contempla apenas o roteiro do destino. Alimentação, bebidas e serviços adicionais não estão inclusos.",
+    requires_guest:true, daily:false, excludes_kids:false,
+    extra_field:{ label:"Data do voucher", placeholder:"Ex.: 18/06", default_blank:true } },
   hospede_raiz: { label:"Hóspede Raiz", title:"Hóspede Raiz", subtitle:"Cortesia especial",
-    description:"Te oferecemos um delicioso drink de boas-vindas para brindar à sua chegada.\nHorário para retirada dos drinks: 17h30 às 19h30.",
+    description:"Regulamento:\n- Vale um drink (Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores), um por pessoa do apartamento por dia durante o período da sua hospedagem;\n- OU Vale um Gelato Italiano tamanho P por pessoa do apartamento por dia durante o período da sua hospedagem;\n- Este voucher é intransferível e de uso único.\nHorário para retirada dos drinks: 17h30 às 19h30.",
     requires_guest:true, daily:true, excludes_kids:false,
     extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false } },
   hospede_romantico: { label:"Hóspede Romântico", title:"Hóspede Romântico", subtitle:"Cortesia especial",
@@ -1442,7 +1447,7 @@ $("lookup-code").addEventListener("keydown", e => { if (e.key === "Enter") looku
 function generateCode(type) {
   const prefix = { welcome_drink:"WD", gelato:"GEL", drink_liberado:"DRK", city_tour:"CTY",
     passeio_pipa:"PIP", passeio_litoral_norte:"LIT", vila_cvc:"CVC",
-    hospede_raiz:"RAI", hospede_romantico:"ROM" }[type] || "VCH";
+    hospede_aventureiro:"AVE", hospede_raiz:"RAI", hospede_romantico:"ROM" }[type] || "VCH";
   return `${prefix}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
 }
 async function printOne(payload) {

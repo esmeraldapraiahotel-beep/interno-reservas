@@ -237,11 +237,15 @@ def build_voucher_html(payload: dict) -> str:
     _vt = payload.get("type", "")
     if orientation == "vertical":
         if is_raiz_check:
-            page_h = "230mm"   # Raiz: rows + checkboxes + regulamento longo
+            page_h = "270mm"   # Raiz: rows + checkboxes + regulamento 4 linhas + horario
         elif _vt == "drink_liberado":
-            page_h = "175mm"   # Drink Liberado: 4 rows + 2 linhas regulamento
+            page_h = "215mm"   # Drink Liberado: rows + regulamento 4 linhas + horario
         elif _vt == "welcome_drink":
-            page_h = "155mm"   # Welcome: sem rows, regulamento 2 linhas
+            page_h = "195mm"   # Welcome: sem rows + regulamento 4 linhas + horario
+        elif _vt == "gelato":
+            page_h = "165mm"   # Gelato: rows + regulamento 3 linhas
+        elif _vt == "hospede_aventureiro":
+            page_h = "180mm"   # Aventureiro: rows + regulamento 3 linhas
         else:
             page_h = "120mm"
         page_w = "72mm"
