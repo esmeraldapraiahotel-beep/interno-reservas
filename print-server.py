@@ -235,12 +235,13 @@ def build_voucher_html(payload: dict) -> str:
     # Tipos que tem regulamento mais longo (2 linhas + destaque do horario)
     # precisam de mais altura, senao corta o "Horario para retirada..."
     _vt = payload.get("type", "")
-    _drink_types = ("drink_liberado", "welcome_drink", "hospede_raiz")
     if orientation == "vertical":
         if is_raiz_check:
-            page_h = "215mm"   # Raiz: rows + checkboxes + regulamento longo
-        elif _vt in _drink_types:
-            page_h = "150mm"   # Drink Liberado / Welcome: regulamento 2 linhas
+            page_h = "230mm"   # Raiz: rows + checkboxes + regulamento longo
+        elif _vt == "drink_liberado":
+            page_h = "175mm"   # Drink Liberado: 4 rows + 2 linhas regulamento
+        elif _vt == "welcome_drink":
+            page_h = "155mm"   # Welcome: sem rows, regulamento 2 linhas
         else:
             page_h = "120mm"
         page_w = "72mm"
@@ -574,17 +575,21 @@ def build_voucher_html(payload: dict) -> str:
     font-weight: 500;
   }}
   .v-rules b {{ color: #000; font-weight: 700; }}
-  /* Destaque do horario: maior, negrito, com caixinha sutil */
+  /* Destaque do horario: caixa PRETA preenchida, texto BRANCO,
+     fonte grande — impossivel ignorar */
   .v-rules .hl {{
-    display: inline-block;
-    margin-top: 2mm;
-    padding: 1.2mm 3mm;
-    font-size: 3.4mm;
-    font-weight: 800;
-    color: #000;
-    border: 0.4mm solid #000;
-    border-radius: 1.5mm;
-    line-height: 1.25;
+    display: block;
+    margin: 3mm auto 0;
+    padding: 2mm 4mm;
+    width: fit-content;
+    max-width: 90%;
+    font-size: 3.8mm;
+    font-weight: 900;
+    color: #fff;
+    background: #000;
+    border-radius: 1.8mm;
+    line-height: 1.3;
+    letter-spacing: 0.15mm;
   }}
 </style>
 </head><body>
