@@ -1068,7 +1068,7 @@ const $ = (id) => document.getElementById(id);
 
 const VOUCHER_TYPES = {
   welcome_drink: { label:"Welcome Drink", title:"Welcome Cocktail", subtitle:"Seja muito bem-vindo!",
-    description:"Regulamento:\n- Vale um drink (Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores), um por pessoa do apartamento por dia durante o período da sua hospedagem;\n- OU Vale um Gelato Italiano tamanho P por pessoa do apartamento por dia durante o período da sua hospedagem;\n- Este voucher é intransferível e de uso único.\nHorário para retirada dos drinks: 17h30 às 19h30.",
+    description:"Coquetel de fruta com ou sem álcool (uma bebida nacional por pessoa). Servido no bar do restaurante.\nHorário para retirada dos drinks: 17h30 às 19h30.",
     requires_guest:false, daily:false, excludes_kids:true, extra_field:null },
   gelato: { label:"Gelato Liberado", title:"Gelato Liberado", subtitle:"Cortesia da casa",
     description:"Este voucher dá direito a um gelato italiano tamanho pequeno por pessoa hospedada no apartamento, válido apenas para o dia especificado no voucher.\n• O voucher é pessoal, intransferível e único.\n• Não é acumulativo ou utilizável em dias posteriores.",
@@ -1103,9 +1103,9 @@ const VOUCHER_TYPES = {
     requires_guest:true, daily:true, excludes_kids:false,
     extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false } },
   hospede_romantico: { label:"Hóspede Romântico", title:"Hóspede Romântico", subtitle:"Cortesia especial",
-    description:"Apresente na recepção.",
+    description:"Regulamento:\n- Voucher válido para resgate e agendamento de um jantar romântico;\n- Jantar Romântico inclui mesa decorada, espumante e sobremesa cortesia.",
     requires_guest:true, daily:false, excludes_kids:false,
-    extra_field:{ label:"Data do jantar", placeholder:"Ex.: 18/06", default_blank:true } },
+    extra_field:{ label:"Agendado para", placeholder:"Ex.: 18/06 20h", default_blank:true } },
 };
 const VOUCHER_LABELS = Object.fromEntries(Object.entries(VOUCHER_TYPES).map(([k,v])=>[k,v.label]));
 

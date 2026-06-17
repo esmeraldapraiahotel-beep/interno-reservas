@@ -27,6 +27,16 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 IS_WINDOWS = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 
+# Sob pythonw.exe (sem janela), todo subprocess.run abre um console preto que
+# pisca por meio segundo. Patch monkey-patches subprocess.run pra herdar
+# CREATE_NO_WINDOW automaticamente — silencioso, sem flicker.
+if IS_WINDOWS:
+    _orig_run = subprocess.run
+    def _run_no_window(*args, **kwargs):
+        kwargs["creationflags"] = kwargs.get("creationflags", 0) | 0x08000000  # CREATE_NO_WINDOW
+        return _orig_run(*args, **kwargs)
+    subprocess.run = _run_no_window  # type: ignore[assignment]
+
 try:
     from PIL import Image
     import qrcode
@@ -178,6 +188,14 @@ def build_voucher_html(payload: dict) -> str:
     # Descrição vira REGULAMENTO no rodapé. Aceita \n explícito.
     # Linhas que comecam com "Horario" ganham destaque (negrito + maior).
     _desc_raw = payload.get("description") or ""
+    # Welcome Drink: regulamento FIXO (rede de seguranca caso o site mande
+    # algo diferente). Mantemos o texto curto pra caber em 140mm.
+    if payload.get("type") == "welcome_drink":
+        _desc_raw = (
+            "Coquetel de fruta com ou sem álcool (uma bebida nacional por pessoa). "
+            "Servido no bar do restaurante.\n"
+            "Horário para retirada dos drinks: 17h30 às 19h30."
+        )
     def _fmt_line(ln: str) -> str:
         s = ln.strip()
         if not s:
@@ -241,11 +259,13 @@ def build_voucher_html(payload: dict) -> str:
         elif _vt == "drink_liberado":
             page_h = "215mm"   # Drink Liberado: rows + regulamento 4 linhas + horario
         elif _vt == "welcome_drink":
-            page_h = "195mm"   # Welcome: sem rows + regulamento 4 linhas + horario
+            page_h = "140mm"   # Welcome: sem rows + regulamento curto fixo + horario
         elif _vt == "gelato":
             page_h = "165mm"   # Gelato: rows + regulamento 3 linhas
         elif _vt == "hospede_aventureiro":
             page_h = "180mm"   # Aventureiro: rows + regulamento 3 linhas
+        elif _vt == "hospede_romantico":
+            page_h = "170mm"   # Romantico: rows + regulamento 3 linhas
         else:
             page_h = "120mm"
         page_w = "72mm"
@@ -481,7 +501,6 @@ def build_voucher_html(payload: dict) -> str:
     margin-top: auto;
     padding-top: 1mm;
   }}
-</style>
   /* ─── Novo layout estilo preview ─── */
   .v-frame {{
     width: {page_w}; height: {page_h};
@@ -492,7 +511,7 @@ def build_voucher_html(payload: dict) -> str:
   .v-top {{
     text-align: center;
     padding-bottom: 4mm;
-    border-bottom: 0.3mm dashed #999;
+    border-bottom: 0.5mm solid #000;
   }}
   .v-top img {{ width: 9mm; height: auto; display: block; margin: 0 auto 1.5mm; }}
   .v-top .hotel {{
@@ -501,14 +520,14 @@ def build_voucher_html(payload: dict) -> str:
     letter-spacing: 0.3mm; margin: 0;
   }}
   .v-top .kind {{
-    font-size: 2.2mm; letter-spacing: 0.8mm;
-    text-transform: uppercase; color: #666;
+    font-size: 2.9mm; letter-spacing: 0.5mm;
+    text-transform: uppercase; color: #000;
     font-weight: 700; margin: 1mm 0 0;
   }}
   .v-mid {{
     text-align: center;
     padding: 5mm 0 4mm;
-    border-bottom: 0.3mm dashed #999;
+    border-bottom: 0.5mm solid #000;
   }}
   .v-mid .v-title {{
     font-family: "Newsreader", Georgia, serif;
@@ -533,11 +552,11 @@ def build_voucher_html(payload: dict) -> str:
     gap: 3mm;
   }}
   .v-rows .rl {{
-    font-size: 2.4mm; letter-spacing: 0.3mm;
-    text-transform: uppercase; color: #666; font-weight: 700;
+    font-size: 3mm; letter-spacing: 0.3mm;
+    text-transform: uppercase; color: #000; font-weight: 700;
   }}
   .v-rows .rv {{
-    font-size: 3mm; font-weight: 600; color: #000;
+    font-size: 3.7mm; font-weight: 700; color: #000;
     text-align: right; max-width: 60%;
     word-break: break-word;
   }}
