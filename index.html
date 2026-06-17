@@ -480,6 +480,23 @@
     font-size: 10px; color: var(--tan); margin: 0;
     line-height: 1.5; letter-spacing: 0.3px;
   }
+  /* Hóspede Raiz: caixinhas Gelato/Drink na preview (espelha o impresso) */
+  .receipt .raiz-choices {
+    display: flex; justify-content: center; gap: 24px;
+    padding: 14px 0;
+    border-top: 1.5px dashed #D8CFC2;
+    font-size: 12px; font-weight: 700; color: var(--ink);
+    letter-spacing: 0.3px;
+  }
+  .receipt .raiz-choices .choice {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .receipt .raiz-checkbox {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 1.2px solid var(--ink);
+    border-radius: 2px;
+  }
   .receipt-cap { font-size: 12px; color: var(--tan-soft); margin: 0; }
 
   /* ─── DASHBOARD ───────────────────────────────── */
@@ -1057,7 +1074,7 @@ const VOUCHER_TYPES = {
     requires_guest:true, daily:true, excludes_kids:false,
     extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false } },
   drink_liberado: { label:"Drink Liberado", title:"Drink Liberado", subtitle:"Cortesia da casa",
-    description:"1 drink à escolha. Apresente no bar.\nHorário para retirada dos drinks: 17h30 às 19h30.",
+    description:"Te oferecemos um delicioso drink de boas-vindas para brindar à sua chegada.\nHorário para retirada dos drinks: 17h30 às 19h30.",
     requires_guest:true, daily:true, excludes_kids:true,
     extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false } },
   city_tour: { label:"City Tour", title:"City Tour", subtitle:"Passeio cortesia",
@@ -1077,7 +1094,7 @@ const VOUCHER_TYPES = {
     requires_guest:true, daily:false, excludes_kids:false,
     extra_field:{ label:"Validade", placeholder:"Durante a estadia", default_blank:false } },
   hospede_raiz: { label:"Hóspede Raiz", title:"Hóspede Raiz", subtitle:"Cortesia especial",
-    description:"Apresente na recepção.",
+    description:"Te oferecemos um delicioso drink de boas-vindas para brindar à sua chegada.\nHorário para retirada dos drinks: 17h30 às 19h30.",
     requires_guest:true, daily:true, excludes_kids:false,
     extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false } },
   hospede_romantico: { label:"Hóspede Romântico", title:"Hóspede Romântico", subtitle:"Cortesia especial",
@@ -1265,6 +1282,11 @@ function buildReceiptHTML(t, guestName, validadeLabel, validadeVal) {
         <div class="r"><span class="lab">Quarto</span><span class="val blank" title="Preenchido à caneta no balcão"></span></div>
         <div class="r"><span class="lab">Reserva</span><span class="val">${escapeHtml(reserva)}</span></div>
         <div class="r"><span class="lab">${escapeHtml(validadeLabel)}</span><span class="val">${escapeHtml(validade)}</span></div>
+      </div>` : ""}
+      ${t && t.label === "Hóspede Raiz" ? `
+      <div class="raiz-choices">
+        <div class="choice"><span class="raiz-checkbox"></span> Gelato</div>
+        <div class="choice"><span class="raiz-checkbox"></span> Drink</div>
       </div>` : ""}
       ${reg ? `<div class="bot"><p>${reg}</p></div>` : ""}
     </div>`;
