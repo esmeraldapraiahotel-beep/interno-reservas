@@ -176,11 +176,21 @@ def build_voucher_html(payload: dict) -> str:
     title = payload.get("title", "Voucher")
 
     # Descrição vira REGULAMENTO no rodapé. Aceita \n explícito.
+    # Linhas que comecam com "Horario" ganham destaque (negrito + maior).
     _desc_raw = payload.get("description") or ""
+    def _fmt_line(ln: str) -> str:
+        s = ln.strip()
+        if not s:
+            return ""
+        low = s.lower()
+        if low.startswith("horário") or low.startswith("horario"):
+            return f'<span class="hl">{s}</span>'
+        return s
     if "\n" in _desc_raw:
-        regulamento_html = "<br>".join(l.strip() for l in _desc_raw.split("\n") if l.strip())
+        lines = [_fmt_line(l) for l in _desc_raw.split("\n") if l.strip()]
+        regulamento_html = "<br>".join(lines)
     else:
-        regulamento_html = _desc_raw
+        regulamento_html = _fmt_line(_desc_raw)
 
     name = (payload.get("name") or "").strip()
     room = (payload.get("room") or "").strip()
@@ -222,10 +232,18 @@ def build_voucher_html(payload: dict) -> str:
     # com o filter POS-80 (evita lixo de raster nas bordas).
     orientation = payload.get("orientation", "vertical")
     is_raiz_check = payload.get("type") == "hospede_raiz"
+    # Tipos que tem regulamento mais longo (2 linhas + destaque do horario)
+    # precisam de mais altura, senao corta o "Horario para retirada..."
+    _vt = payload.get("type", "")
+    _drink_types = ("drink_liberado", "welcome_drink", "hospede_raiz")
     if orientation == "vertical":
-        # Sem carimbo + sem rodapé fixo, o voucher é mais curto.
-        # Raiz mantém mais altura porque tem regulamento longo + checkboxes.
-        page_w, page_h = "72mm", ("180mm" if is_raiz_check else "120mm")
+        if is_raiz_check:
+            page_h = "215mm"   # Raiz: rows + checkboxes + regulamento longo
+        elif _vt in _drink_types:
+            page_h = "150mm"   # Drink Liberado / Welcome: regulamento 2 linhas
+        else:
+            page_h = "120mm"
+        page_w = "72mm"
     else:
         page_w, page_h = "132mm", "72mm"
 
@@ -550,11 +568,24 @@ def build_voucher_html(payload: dict) -> str:
     margin-top: auto;
     border-top: 0.3mm dashed #999;
     padding-top: 4mm;
+    padding-bottom: 4mm;
     text-align: center;
     font-size: 2.8mm; line-height: 1.45; color: #1a1a1a;
     font-weight: 500;
   }}
   .v-rules b {{ color: #000; font-weight: 700; }}
+  /* Destaque do horario: maior, negrito, com caixinha sutil */
+  .v-rules .hl {{
+    display: inline-block;
+    margin-top: 2mm;
+    padding: 1.2mm 3mm;
+    font-size: 3.4mm;
+    font-weight: 800;
+    color: #000;
+    border: 0.4mm solid #000;
+    border-radius: 1.5mm;
+    line-height: 1.25;
+  }}
 </style>
 </head><body>
 <div class="v-frame">
