@@ -505,18 +505,28 @@
     font-size: 12px; font-weight: 800; letter-spacing: 0.4px;
     line-height: 1.3;
   }
-  /* Campo de horário com cadeado no form */
-  .withdraw-wrap { position: relative; }
+  /* Card de horário com cadeado: input centralizado + cadeado dentro */
+  #card-withdrawal h2 { text-align: center; }
+  #card-withdrawal .hint { text-align: center; margin-top: 10px; }
+  .withdraw-wrap {
+    position: relative;
+    max-width: 280px;
+    margin: 0 auto;
+  }
   .withdraw-wrap input {
-    padding-right: 42px !important;
+    width: 100%;
+    padding: 14px 52px 14px 18px !important;
+    text-align: center;
+    font-size: 16px; font-weight: 700;
+    letter-spacing: 0.4px;
     transition: background .15s, border-color .15s;
   }
   .withdraw-wrap input[readonly] {
     background: #F4ECDF; cursor: not-allowed; color: #6B5D50;
   }
   .lock-btn {
-    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-    width: 34px; height: 34px; border-radius: 8px;
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: 38px; height: 38px; border-radius: 9px;
     background: transparent; border: none; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     color: var(--tan);
@@ -937,19 +947,21 @@
               <label class="lbl" id="lbl-extra">Validade</label>
               <input id="f-validade" placeholder="">
             </div>
-            <div id="field-withdrawal" style="display:none;">
-              <label class="lbl">Horário de retirada</label>
-              <div class="withdraw-wrap">
-                <input id="f-withdrawal" value="17h30 - 19h00" readonly>
-                <button type="button" id="f-withdrawal-lock" class="lock-btn" title="Clique pra editar">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
           </div>
+        </div>
+
+        <div class="card" id="card-withdrawal" style="display:none;">
+          <h2>Horário de retirada</h2>
+          <div class="withdraw-wrap">
+            <input id="f-withdrawal" value="17h30 - 19h00" readonly>
+            <button type="button" id="f-withdrawal-lock" class="lock-btn" title="Clique pra editar">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </button>
+          </div>
+          <p class="hint">Aparece em destaque no impresso. Clique no cadeado para alterar.</p>
         </div>
 
         <div id="preview-area"></div>
@@ -1412,8 +1424,9 @@ function updateAll() {
     } else {
       fieldExtra.style.display = "none";
     }
-    // Campo de horário de retirada (welcome_drink, drink_liberado, hospede_raiz)
-    document.getElementById("field-withdrawal").style.display =
+    // Campo de horário de retirada — card próprio (vale até no welcome_drink,
+    // que esconde o card-form mas precisa do horário editável)
+    document.getElementById("card-withdrawal").style.display =
       t.has_withdrawal_time ? "" : "none";
   } else { desc.textContent = ""; }
   const isWelcome = t && !t.requires_guest;
