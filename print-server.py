@@ -193,9 +193,23 @@ def build_voucher_html(payload: dict) -> str:
     if payload.get("type") == "welcome_drink":
         _desc_raw = (
             "Coquetel de fruta com ou sem álcool (uma bebida nacional por pessoa). "
-            "Servido no bar do restaurante.\n"
-            "Horário para retirada dos drinks: 17h30 às 19h30."
+            "Servido no bar do restaurante."
         )
+    # Horario de retirada editavel: vem do payload (welcome_drink, drink_liberado,
+    # hospede_raiz). Default 17h30 - 19h00 se o front nao mandar nada.
+    # Sempre injetado como ULTIMA linha do regulamento (vira o destaque preto).
+    _withdrawal = (payload.get("withdrawal_time") or "").strip()
+    _drink_types = ("welcome_drink", "drink_liberado", "hospede_raiz")
+    if payload.get("type") in _drink_types:
+        if not _withdrawal:
+            _withdrawal = "17h30 - 19h00"
+        # Remove qualquer linha antiga "Horario..." (rede de seguranca)
+        _desc_raw = "\n".join(
+            l for l in _desc_raw.split("\n")
+            if not (l.strip().lower().startswith("horário")
+                    or l.strip().lower().startswith("horario"))
+        )
+        _desc_raw = _desc_raw.rstrip() + f"\nHorário para retirada dos drinks: {_withdrawal}."
     def _fmt_line(ln: str) -> str:
         s = ln.strip()
         if not s:

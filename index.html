@@ -497,6 +497,32 @@
     border: 1.2px solid var(--ink);
     border-radius: 2px;
   }
+  /* Caixa preta com horário de retirada (espelha o impresso) */
+  .receipt .withdrawal-time {
+    display: inline-block; margin: 8px auto 0;
+    padding: 6px 14px; border-radius: 6px;
+    background: #000; color: #fff;
+    font-size: 12px; font-weight: 800; letter-spacing: 0.4px;
+    line-height: 1.3;
+  }
+  /* Campo de horário com cadeado no form */
+  .withdraw-wrap { position: relative; }
+  .withdraw-wrap input {
+    padding-right: 42px !important;
+    transition: background .15s, border-color .15s;
+  }
+  .withdraw-wrap input[readonly] {
+    background: #F4ECDF; cursor: not-allowed; color: #6B5D50;
+  }
+  .lock-btn {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; border-radius: 8px;
+    background: transparent; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--tan);
+  }
+  .lock-btn:hover { background: rgba(0,0,0,0.05); color: var(--ink); }
+  .lock-btn.unlocked { color: #2F8F5B; }
   .receipt-cap { font-size: 12px; color: var(--tan-soft); margin: 0; }
 
   /* ─── DASHBOARD ───────────────────────────────── */
@@ -911,6 +937,18 @@
               <label class="lbl" id="lbl-extra">Validade</label>
               <input id="f-validade" placeholder="">
             </div>
+            <div id="field-withdrawal" style="display:none;">
+              <label class="lbl">Horário de retirada</label>
+              <div class="withdraw-wrap">
+                <input id="f-withdrawal" value="17h30 - 19h00" readonly>
+                <button type="button" id="f-withdrawal-lock" class="lock-btn" title="Clique pra editar">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1068,16 +1106,16 @@ const $ = (id) => document.getElementById(id);
 
 const VOUCHER_TYPES = {
   welcome_drink: { label:"Welcome Drink", title:"Welcome Cocktail", subtitle:"Seja muito bem-vindo!",
-    description:"Coquetel de fruta com ou sem álcool (uma bebida nacional por pessoa). Servido no bar do restaurante.\nHorário para retirada dos drinks: 17h30 às 19h30.",
-    requires_guest:false, daily:false, excludes_kids:true, extra_field:null },
+    description:"Coquetel de fruta com ou sem álcool (uma bebida nacional por pessoa). Servido no bar do restaurante.",
+    requires_guest:false, daily:false, excludes_kids:true, extra_field:null, has_withdrawal_time:true },
   gelato: { label:"Gelato Liberado", title:"Gelato Liberado", subtitle:"Cortesia da casa",
     description:"Este voucher dá direito a um gelato italiano tamanho pequeno por pessoa hospedada no apartamento, válido apenas para o dia especificado no voucher.\n• O voucher é pessoal, intransferível e único.\n• Não é acumulativo ou utilizável em dias posteriores.",
     requires_guest:true, daily:true, excludes_kids:false,
     extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false } },
   drink_liberado: { label:"Drink Liberado", title:"Drink Liberado", subtitle:"Cortesia da casa",
-    description:"Regulamento:\n- Vale um drink (Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores), um por pessoa do apartamento por dia durante o período da sua hospedagem;\n- OU Vale um Gelato Italiano tamanho P por pessoa do apartamento por dia durante o período da sua hospedagem;\n- Este voucher é intransferível e de uso único.\nHorário para retirada dos drinks: 17h30 às 19h30.",
+    description:"Regulamento:\n- Vale um drink (Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores), um por pessoa do apartamento por dia durante o período da sua hospedagem;\n- OU Vale um Gelato Italiano tamanho P por pessoa do apartamento por dia durante o período da sua hospedagem;\n- Este voucher é intransferível e de uso único.",
     requires_guest:true, daily:true, excludes_kids:true,
-    extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false } },
+    extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false }, has_withdrawal_time:true },
   city_tour: { label:"City Tour", title:"City Tour", subtitle:"Passeio cortesia",
     description:"Apresente na recepção para reservar seu passeio.",
     requires_guest:true, daily:false, excludes_kids:false,
@@ -1099,9 +1137,9 @@ const VOUCHER_TYPES = {
     requires_guest:true, daily:false, excludes_kids:false,
     extra_field:{ label:"Data do voucher", placeholder:"Ex.: 18/06", default_blank:true } },
   hospede_raiz: { label:"Hóspede Raiz", title:"Hóspede Raiz", subtitle:"Cortesia especial",
-    description:"Regulamento:\n- Vale um drink (Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores), um por pessoa do apartamento por dia durante o período da sua hospedagem;\n- OU Vale um Gelato Italiano tamanho P por pessoa do apartamento por dia durante o período da sua hospedagem;\n- Este voucher é intransferível e de uso único.\nHorário para retirada dos drinks: 17h30 às 19h30.",
+    description:"Regulamento:\n- Vale um drink (Soda Italiana (todos os sabores) ou Vodka Spritz (todos os sabores), um por pessoa do apartamento por dia durante o período da sua hospedagem;\n- OU Vale um Gelato Italiano tamanho P por pessoa do apartamento por dia durante o período da sua hospedagem;\n- Este voucher é intransferível e de uso único.",
     requires_guest:true, daily:true, excludes_kids:false,
-    extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false } },
+    extra_field:{ label:"Validade", placeholder:"Ex.: 15/06 23h", default_blank:false }, has_withdrawal_time:true },
   hospede_romantico: { label:"Hóspede Romântico", title:"Hóspede Romântico", subtitle:"Cortesia especial",
     description:"Regulamento:\n- Voucher válido para resgate e agendamento de um jantar romântico;\n- Jantar Romântico inclui mesa decorada, espumante e sobremesa cortesia.",
     requires_guest:true, daily:false, excludes_kids:false,
@@ -1262,15 +1300,19 @@ function escapeHtml(s) {
 
 function buildReceiptHTML(t, guestName, validadeLabel, validadeVal) {
   /* Constroi 1 receipt da preview. Footer agora eh o regulamento
-     (description do tipo de voucher) em vez do 'Apresente no local...'. */
+     (description do tipo de voucher) em vez do 'Apresente no local...'.
+     Vouchers com has_withdrawal_time ganham caixa preta com horário no fim
+     do regulamento (espelha o impresso). */
   const titulo = t ? t.title : "Selecione o tipo";
   const reserva = $("f-reserva").value.trim() || "—";
   const nome = guestName || "—";
   const validade = validadeVal || "—";
-  // Regulamento = description (suporta \n explicito virando <br>)
   const reg = (t && t.description)
     ? escapeHtml(t.description).replace(/\n/g, "<br>")
     : (t ? "" : "A pré-visualização aparece aqui.");
+  const withdrawal = (t && t.has_withdrawal_time)
+    ? ($("f-withdrawal").value.trim() || "17h30 - 19h00")
+    : "";
   return `
     <div class="receipt">
       <div class="top">
@@ -1293,7 +1335,11 @@ function buildReceiptHTML(t, guestName, validadeLabel, validadeVal) {
         <div class="choice"><span class="raiz-checkbox"></span> Gelato</div>
         <div class="choice"><span class="raiz-checkbox"></span> Drink</div>
       </div>` : ""}
-      ${reg ? `<div class="bot"><p>${reg}</p></div>` : ""}
+      ${reg ? `<div class="bot"><p>${reg}</p>${
+        withdrawal
+          ? `<div class="withdrawal-time">Horário para retirada dos drinks: ${escapeHtml(withdrawal)}</div>`
+          : ""
+      }</div>` : ""}
     </div>`;
 }
 
@@ -1366,6 +1412,9 @@ function updateAll() {
     } else {
       fieldExtra.style.display = "none";
     }
+    // Campo de horário de retirada (welcome_drink, drink_liberado, hospede_raiz)
+    document.getElementById("field-withdrawal").style.display =
+      t.has_withdrawal_time ? "" : "none";
   } else { desc.textContent = ""; }
   const isWelcome = t && !t.requires_guest;
   cardLookup.classList.toggle("hidden", isWelcome);
@@ -1390,7 +1439,29 @@ function updateAll() {
   btnPrintTxt.textContent = total > 1 ? `Imprimir ${total} ${word}` : `Imprimir ${word}`;
 }
 
-sel.addEventListener("change", () => { $("f-validade").value = ""; updateAll(); });
+sel.addEventListener("change", () => {
+  $("f-validade").value = "";
+  // Reseta horário pra default e tranca cadeado a cada troca de tipo
+  const fw = $("f-withdrawal"), lk = $("f-withdrawal-lock");
+  fw.value = "17h30 - 19h00";
+  fw.setAttribute("readonly", "");
+  lk.classList.remove("unlocked");
+  lk.title = "Clique pra editar";
+  updateAll();
+});
+// Toggle do cadeado: clicar destrava/trava o input do horário
+$("f-withdrawal-lock").addEventListener("click", () => {
+  const fw = $("f-withdrawal"), lk = $("f-withdrawal-lock");
+  if (fw.hasAttribute("readonly")) {
+    fw.removeAttribute("readonly"); fw.focus(); fw.select();
+    lk.classList.add("unlocked"); lk.title = "Clique pra travar";
+  } else {
+    fw.setAttribute("readonly", "");
+    lk.classList.remove("unlocked"); lk.title = "Clique pra editar";
+  }
+  updateAll();
+});
+$("f-withdrawal").addEventListener("input", updateAll);
 document.querySelectorAll("#seg-orient button").forEach(b => {
   b.addEventListener("click", () => {
     document.querySelectorAll("#seg-orient button").forEach(x => x.classList.remove("on"));
@@ -1485,12 +1556,16 @@ async function doPrint() {
       const validade = day
         ? `Válido em ${fmtDayBR(day)}`
         : ($("f-validade").value.trim() || (t.extra_field?.default_blank ? "" : ""));
+      const withdrawalTime = t.has_withdrawal_time
+        ? ($("f-withdrawal").value.trim() || "17h30 - 19h00")
+        : null;
       const payload = {
         type:sel.value, title:t.title, subtitle:t.subtitle, description:t.description,
         name:`${g.nome} ${g.sobrenome||""}`.trim(),
         room:"", reserva:$("f-reserva").value.trim(),
         validade, code:generateCode(sel.value), issued_at:new Date().toISOString(),
         is_test:isTest, extra_label:t.extra_field?.label||"Validade", orientation,
+        withdrawal_time: withdrawalTime,
       };
       try { await printOne(payload); ok++; btnPrintTxt.textContent = `Imprimindo ${ok}/${total}…`; }
       catch (e) { errors.push(e.message); }
