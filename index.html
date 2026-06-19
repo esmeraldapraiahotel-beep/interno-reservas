@@ -878,6 +878,7 @@
           <label class="lbl">Tipo</label>
           <select id="voucher-type">
             <option value="">Selecione…</option>
+            <option value="kit_alavantu">🇧🇷 Kit Alavantú Brasil</option>
             <option value="welcome_drink">Welcome Drink</option>
             <option value="gelato">Gelato Liberado</option>
             <option value="drink_liberado">Drink Liberado</option>
@@ -1117,6 +1118,9 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const $ = (id) => document.getElementById(id);
 
 const VOUCHER_TYPES = {
+  kit_alavantu: { label:"Kit Alavantú Brasil", title:"KIT ALAVANTÚ BRASIL", subtitle:"Brinde do Esmeralda Praia Hotel",
+    description:"Retire no Salão de Eventos e entregue este voucher (QR Code) para um atendente. Válido para os hóspedes listados.",
+    requires_guest:true, daily:false, excludes_kids:false, kit:true },
   welcome_drink: { label:"Welcome Drink", title:"Welcome Cocktail", subtitle:"Seja muito bem-vindo!",
     description:"Coquetel de fruta com ou sem álcool (uma bebida nacional por pessoa). Servido no bar do restaurante.",
     requires_guest:false, daily:false, excludes_kids:true, extra_field:null, has_withdrawal_time:true },
@@ -1546,6 +1550,7 @@ async function printOne(payload) {
 async function doPrint() {
   const t = VOUCHER_TYPES[sel.value]; if (!t) return;
   const isTest = $("f-test-mode").checked;
+  if (t.kit) { await doPrintKit(t, isTest); return; }
   if (!t.requires_guest) {
     btnPrint.disabled = true; btnPrintTxt.textContent = "Imprimindo…";
     try {
@@ -1590,6 +1595,69 @@ async function doPrint() {
   else setAlert(`Falha ao imprimir: ${errors[0]||"sem detalhes"}`, "err");
   updateAll();
 }
+// Kit Alavantú: emite UM voucher de grupo pelo bolão (mesmo RPC do totem,
+// que valida elegibilidade + bloqueia duplicado) e imprime com o QR do código.
+async function doPrintKit(t, isTest) {
+  const guests = selectedGuests();
+  if (guests.length === 0) { setAlert("Selecione ao menos um hóspede.", "err", true); return; }
+  const reserva = $("f-reserva").value.trim();
+  const checkin = (stayCheckin || $("f-checkin").value || "").trim();
+  const checkout = (stayCheckout || $("f-checkout").value || "").trim();
+  if (!reserva || !checkin || !checkout) { setAlert("Busque a reserva primeiro (precisa do código e das datas de check-in/out).", "err", true); return; }
+
+  const members = guests.map(g => {
+    const uhInt = parseInt(g.uh, 10);
+    return {
+      name: `${g.nome} ${g.sobrenome || ""}`.trim(),
+      doc: g.documento_mask || "",
+      room: isNaN(uhInt) ? (parseInt($("f-room").value, 10) || null) : uhInt,
+      guest_id: g.guest_id || null,
+    };
+  });
+
+  btnPrint.disabled = true; btnPrintTxt.textContent = "Emitindo Kit…"; setAlert("");
+  let res;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/bolao_kit_issue_group_from_pms`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ p_reserva: reserva, p_checkin: checkin, p_checkout: checkout, p_members: members }),
+    });
+    res = await r.json();
+  } catch (e) {
+    btnPrint.disabled = false; btnPrintTxt.textContent = "Imprimir voucher";
+    setAlert("Erro de rede ao emitir o Kit. Tente de novo.", "err"); return;
+  }
+  btnPrint.disabled = false; btnPrintTxt.textContent = "Imprimir voucher";
+
+  if (!res || !res.ok) {
+    const err = res && res.error;
+    if (err === "estadia_nao_cobre_jogo") setAlert("Essa estadia não cobre nenhum jogo do Brasil — Kit não disponível.", "err", true);
+    else if (err === "already_issued") setAlert("Essa reserva já retirou o Kit Alavantú.", "err", true);
+    else setAlert(`Não consegui emitir o Kit (${err || "falha"}).`, "err");
+    return;
+  }
+
+  try {
+    await printOne({
+      type: "kit_alavantu", kit: true,
+      title: "KIT ALAVANTÚ BRASIL", subtitle: "Brinde do Esmeralda Praia Hotel",
+      code: res.code, qr: true,
+      name: res.guest_name || members[0].name,
+      room: res.guest_room != null ? String(res.guest_room) : ($("f-room").value || ""),
+      reserva,
+      members: members.map(m => m.name),
+      games_covered: res.games_covered || [],
+      pickup: "Retire no Salão de Eventos. Entregue este voucher para um atendente.",
+      issued_at: new Date().toISOString(), orientation, is_test: isTest,
+    });
+    setAlert(`✓ Kit emitido e impresso · código ${res.code}`, "ok", true);
+  } catch (e) {
+    setAlert(`Kit emitido (${res.code}), mas a impressão falhou: ${e.message}. Reimprima pelo histórico se precisar.`, "err");
+  }
+  updateAll();
+}
+
 btnPrint.addEventListener("click", doPrint);
 
 /* Printer health */
