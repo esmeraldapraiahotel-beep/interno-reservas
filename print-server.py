@@ -136,11 +136,11 @@ def b64_logo():
         return base64.b64encode(f.read()).decode("ascii")
 
 
-def make_qr_b64(text: str) -> str:
+def make_qr_b64(text: str, border: int = 2) -> str:
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=10, border=2,
+        box_size=10, border=border,
     )
     qr.add_data(text)
     qr.make(fit=True)
@@ -651,77 +651,59 @@ def build_voucher_html(payload: dict) -> str:
 
 _KIT_CSS = """
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,Helvetica,sans-serif;color:#0F1E5C;width:72mm;padding:6mm 4mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.hotel{text-align:center;font-size:9px;letter-spacing:1px;font-weight:bold}
-.logo{width:26mm;height:auto;display:block;margin:0 auto 1mm}
-.title{text-align:center;font-size:18px;font-weight:900;margin:3mm 0 0;letter-spacing:.5px}
-.sub{text-align:center;font-size:9px;color:#3F4F8C;margin-bottom:2mm}
-.qr{display:block;width:38mm;height:38mm;margin:2mm auto 1mm}
-.code-wrap{text-align:center}
-.code{font-family:'Courier New',monospace;font-size:20px;font-weight:bold;letter-spacing:2px;border:2px solid #0F1E5C;border-radius:6px;padding:2mm 3mm;margin:1mm auto 3mm;display:inline-block}
-.row{display:flex;justify-content:space-between;font-size:11px;padding:1mm 0;border-bottom:1px dotted #aaa}
-.rl{color:#3F4F8C;font-weight:bold}
-.rv{font-weight:bold;text-align:right}
-.sec{margin-top:3mm}
-.sec-t{font-size:9px;font-weight:bold;color:#3F4F8C;text-transform:uppercase;letter-spacing:.5px}
-.mem{list-style:none;margin-top:1mm}
-.mem li{font-size:12px;font-weight:bold;padding:.5mm 0}
-.games{font-size:10px;text-align:center;margin:3mm 0}
-.pickup{font-size:10px;text-align:center;margin:3mm 0;line-height:1.4}
-.sign-line{border-top:1px solid #0F1E5C;margin:8mm 6mm 1mm}
-.sign-lbl{text-align:center;font-size:9px;color:#3F4F8C}
-.foot{text-align:center;font-size:8px;color:#8A8F9D;margin-top:3mm}
+body{font-family:Arial,Helvetica,sans-serif;color:#000;width:72mm;padding:5mm 4mm;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.logo{width:24mm;height:auto;display:block;margin:0 auto 1mm}
+.hotel{font-size:10px;letter-spacing:1px;font-weight:bold;margin-bottom:3mm}
+.voucher{font-size:22px;font-weight:900;letter-spacing:1px;margin:1mm 0}
+.prize{font-size:18px;font-weight:900;margin:2mm 0 0;line-height:1.05}
+.brinde{font-size:11px;font-weight:bold;letter-spacing:1px;margin-bottom:2mm}
+.qr{width:46mm;height:46mm;display:block;margin:3mm auto 2mm;image-rendering:pixelated}
+.code{font-family:'Courier New',monospace;font-size:19px;font-weight:bold;letter-spacing:2px;border:2px solid #000;border-radius:4px;padding:2mm 4mm;display:inline-block;margin:1mm 0 3mm}
+.info{font-size:12px;margin:1mm 0}
+.info b{font-weight:bold}
+.divider{border-top:1px dashed #000;margin:3mm 2mm}
+.foot{font-size:10px;line-height:1.5}
+.sign-line{border-top:1px solid #000;margin:9mm 6mm 1mm}
+.sign-lbl{font-size:10px}
 """
 
 
 def build_kit_voucher_html(payload: dict) -> str:
-    """Voucher do Kit Alavantú Brasil — igual ao do totem, com QR do código
-    pra o admin do bolão escanear (bolao_kit_lookup_voucher). POS-80, 72mm."""
+    """Voucher do Kit Alavantú Brasil — mesmo layout do totem, com QR do código
+    pra o admin do bolão escanear (bolao_kit_lookup_voucher). POS-80, 72mm.
+    QR encoda EXATAMENTE o código (ex.: KIT-XXXXXX), igual ao totem."""
     code = payload.get("code", "—")
     name = (payload.get("name") or "").strip()
     room = (payload.get("room") or "").strip()
-    reserva = (payload.get("reserva") or "").strip()
-    members = [str(m).strip() for m in (payload.get("members") or []) if str(m).strip()]
-    games = payload.get("games_covered") or []
-    pickup = (payload.get("pickup") or "Retire no Salão de Eventos. Entregue este voucher para um atendente.").strip()
-    title = payload.get("title", "KIT ALAVANTÚ BRASIL")
-    sub = payload.get("subtitle", "Brinde do Esmeralda Praia Hotel")
+    validade = (payload.get("validade") or "").strip()
 
     logo_b64 = b64_logo()
-    logo_img = (f'<img class="logo" src="data:image/png;base64,{logo_b64}" alt="">' if logo_b64 else '')
-    qr_b64 = make_qr_b64(code)
+    logo_img = (f'<img class="logo" src="data:image/svg+xml;base64,{logo_b64}" alt="">' if logo_b64 else '')
+    # border 4 = zona de silêncio maior → leitura mais confiável na câmera do app
+    qr_b64 = make_qr_b64(code, border=4)
 
-    def _fmt_game(g):
-        s = str(g)
-        return f"{s[8:10]}/{s[5:7]}" if len(s) >= 10 and s[4:5] == "-" else s
-    games_html = (f'<p class="games">Jogos do Brasil cobertos: <b>{" · ".join(_fmt_game(g) for g in games)}</b></p>' if games else "")
+    info = f'<p class="info"><b>Hóspede:</b> {name}</p>' if name else ''
+    if room:
+        info += f'<p class="info"><b>Quarto:</b> {room}</p>'
+    if validade:
+        info += f'<p class="info"><b>Válido até:</b> {validade}</p>'
 
-    members_html = ""
-    if members:
-        items = "".join(f"<li>{m}</li>" for m in members)
-        members_html = f'<div class="sec"><p class="sec-t">Hóspedes</p><ul class="mem">{items}</ul></div>'
-
-    def row(lbl, val):
-        v = f'<span class="rv">{val}</span>' if val else '<span class="rv" style="flex:1;border-bottom:1px solid #999;margin-left:6mm"></span>'
-        return f'<div class="row"><span class="rl">{lbl}</span>{v}</div>'
-
-    page_h = 185 + len(members) * 6 + (10 if games else 0)
-    css = f"<style>@page{{size:72mm {page_h}mm;margin:0}}{_KIT_CSS}</style>"
-
+    css = f"<style>@page{{size:72mm 205mm;margin:0}}{_KIT_CSS}</style>"
     return (
-        '<!doctype html><html><head><meta charset="utf-8">' + css + "</head><body>"
+        '<!doctype html><html><head><meta charset="utf-8">' + css + '</head><body>'
         + logo_img
         + '<p class="hotel">ESMERALDA PRAIA HOTEL</p>'
-        + f'<p class="title">{title}</p>'
-        + f'<p class="sub">{sub}</p>'
+        + '<p class="voucher">VOUCHER</p>'
+        + '<p class="prize">KIT ALAVANTÚ BRASIL</p>'
+        + '<p class="brinde">BRINDE</p>'
         + f'<img class="qr" src="data:image/png;base64,{qr_b64}" alt="QR">'
-        + f'<div class="code-wrap"><span class="code">{code}</span></div>'
-        + row("Hóspede", name) + row("Quarto", room) + row("Reserva", reserva)
-        + members_html + games_html
-        + f'<p class="pickup">{pickup}</p>'
+        + f'<div><span class="code">{code}</span></div>'
+        + info
+        + '<div class="divider"></div>'
+        + '<p class="foot">Valide na recepção<br>Regulamento completo em:<br>bolao.esmeraldapraiahotel.com.br/termos</p>'
+        + '<div class="divider"></div>'
         + '<div class="sign-line"></div><p class="sign-lbl">Assinatura do hóspede</p>'
-        + '<p class="foot">Apresente este QR Code para um atendente validar.</p>'
-        + "</body></html>"
+        + '</body></html>'
     )
 
 

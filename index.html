@@ -1639,16 +1639,16 @@ async function doPrintKit(t, isTest) {
   }
 
   try {
+    const vu = new Date(Date.now() + 6 * 24 * 3600 * 1000); // validade 6 dias (igual totem)
+    const p2 = n => String(n).padStart(2, "0");
+    const validade = `${p2(vu.getDate())}/${p2(vu.getMonth() + 1)} ${p2(vu.getHours())}:${p2(vu.getMinutes())}`;
     await printOne({
       type: "kit_alavantu", kit: true,
-      title: "KIT ALAVANTÚ BRASIL", subtitle: "Brinde do Esmeralda Praia Hotel",
+      title: "KIT ALAVANTÚ BRASIL",
       code: res.code, qr: true,
       name: res.guest_name || members[0].name,
       room: res.guest_room != null ? String(res.guest_room) : ($("f-room").value || ""),
-      reserva,
-      members: members.map(m => m.name),
-      games_covered: res.games_covered || [],
-      pickup: "Retire no Salão de Eventos. Entregue este voucher para um atendente.",
+      reserva, validade,
       issued_at: new Date().toISOString(), orientation, is_test: isTest,
     });
     setAlert(`✓ Kit emitido e impresso · código ${res.code}`, "ok", true);
