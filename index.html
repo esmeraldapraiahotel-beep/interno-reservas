@@ -1650,6 +1650,7 @@ async function doPrintKit(t, isTest) {
       room: res.guest_room != null ? String(res.guest_room) : ($("f-room").value || ""),
       reserva, validade,
       issued_at: new Date().toISOString(), orientation, is_test: isTest,
+      copies: 2, // 1ª via = hóspede, 2ª via = hotel
     });
     setAlert(`✓ Kit emitido e impresso · código ${res.code}`, "ok", true);
   } catch (e) {

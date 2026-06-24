@@ -651,7 +651,10 @@ def build_voucher_html(payload: dict) -> str:
 
 _KIT_CSS = """
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,Helvetica,sans-serif;color:#000;width:72mm;padding:5mm 4mm;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:Arial,Helvetica,sans-serif;color:#000;width:72mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.via{width:72mm;padding:5mm 4mm;text-align:center;page-break-after:always}
+.via:last-child{page-break-after:auto}
+.via-label{font-size:11px;font-weight:900;letter-spacing:2px;margin-bottom:2mm;border:1.5px solid #000;padding:1mm 2mm;display:inline-block}
 .logo{width:24mm;height:auto;display:block;margin:0 auto 1mm}
 .hotel{font-size:10px;letter-spacing:1px;font-weight:bold;margin-bottom:3mm}
 .voucher{font-size:22px;font-weight:900;letter-spacing:1px;margin:1mm 0}
@@ -668,10 +671,9 @@ body{font-family:Arial,Helvetica,sans-serif;color:#000;width:72mm;padding:5mm 4m
 """
 
 
-def build_kit_voucher_html(payload: dict) -> str:
-    """Voucher do Kit Alavantú Brasil — mesmo layout do totem, com QR do código
-    pra o admin do bolão escanear (bolao_kit_lookup_voucher). POS-80, 72mm.
-    QR encoda EXATAMENTE o código (ex.: KIT-XXXXXX), igual ao totem."""
+def _render_kit_via(payload: dict, via_label: "str | None") -> str:
+    """Renderiza UMA via do voucher de Kit. via_label = 'VIA DO HÓSPEDE' / 'VIA DO HOTEL'
+    ou None (uma via só, sem marca)."""
     code = payload.get("code", "—")
     name = (payload.get("name") or "").strip()
     room = (payload.get("room") or "").strip()
@@ -679,7 +681,6 @@ def build_kit_voucher_html(payload: dict) -> str:
 
     logo_b64 = b64_logo()
     logo_img = (f'<img class="logo" src="data:image/svg+xml;base64,{logo_b64}" alt="">' if logo_b64 else '')
-    # border 4 = zona de silêncio maior → leitura mais confiável na câmera do app
     qr_b64 = make_qr_b64(code, border=4)
 
     info = f'<p class="info"><b>Hóspede:</b> {name}</p>' if name else ''
@@ -688,11 +689,13 @@ def build_kit_voucher_html(payload: dict) -> str:
     if validade:
         info += f'<p class="info"><b>Válido até:</b> {validade}</p>'
 
-    css = f"<style>@page{{size:72mm 205mm;margin:0}}{_KIT_CSS}</style>"
+    via_tag = f'<div class="via-label">{via_label}</div>' if via_label else ''
+
     return (
-        '<!doctype html><html><head><meta charset="utf-8">' + css + '</head><body>'
+        '<section class="via">'
         + logo_img
         + '<p class="hotel">ESMERALDA PRAIA HOTEL</p>'
+        + via_tag
         + '<p class="voucher">VOUCHER</p>'
         + '<p class="prize">KIT ALAVANTÚ BRASIL</p>'
         + '<p class="brinde">BRINDE</p>'
@@ -703,6 +706,36 @@ def build_kit_voucher_html(payload: dict) -> str:
         + '<p class="foot">Valide na recepção<br>Regulamento completo em:<br>bolao.esmeraldapraiahotel.com.br/termos</p>'
         + '<div class="divider"></div>'
         + '<div class="sign-line"></div><p class="sign-lbl">Assinatura do hóspede</p>'
+        + '</section>'
+    )
+
+
+def build_kit_voucher_html(payload: dict) -> str:
+    """Voucher do Kit Alavantú Brasil — mesmo layout do totem, com QR do código
+    pra o admin do bolão escanear (bolao_kit_lookup_voucher). POS-80, 72mm.
+    QR encoda EXATAMENTE o código (ex.: KIT-XXXXXX), igual ao totem.
+
+    Quando payload['copies'] > 1, gera N vias separadas por page-break (CUPS
+    aplica corte parcial entre páginas via PageCutType=1PartialCutPage).
+    Default = 2 vias (1ª hóspede, 2ª hotel)."""
+    try:
+        copies = int(payload.get("copies", 2))
+    except (TypeError, ValueError):
+        copies = 2
+    copies = max(1, min(3, copies))
+
+    css = f"<style>@page{{size:72mm 205mm;margin:0}}{_KIT_CSS}</style>"
+
+    if copies <= 1:
+        body = _render_kit_via(payload, None)
+    else:
+        labels = ["VIA DO HÓSPEDE", "VIA DO HOTEL", "VIA EXTRA"]
+        body = "".join(_render_kit_via(payload, labels[i] if i < len(labels) else f"VIA {i+1}")
+                       for i in range(copies))
+
+    return (
+        '<!doctype html><html><head><meta charset="utf-8">' + css + '</head><body>'
+        + body
         + '</body></html>'
     )
 
