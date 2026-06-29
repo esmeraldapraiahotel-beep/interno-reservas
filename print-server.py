@@ -710,34 +710,36 @@ def _render_kit_via(payload: dict, via_label: "str | None") -> str:
     )
 
 
-def build_kit_voucher_html(payload: dict) -> str:
-    """Voucher do Kit Alavantú Brasil — mesmo layout do totem, com QR do código
-    pra o admin do bolão escanear (bolao_kit_lookup_voucher). POS-80, 72mm.
+def build_kit_voucher_html(payload: dict, via_label: "str | None" = None) -> str:
+    """Voucher do Kit Alavantú Brasil — UMA via por página/PDF (POS-80, 72mm).
     QR encoda EXATAMENTE o código (ex.: KIT-XXXXXX), igual ao totem.
 
-    Quando payload['copies'] > 1, gera N vias separadas por page-break (CUPS
-    aplica corte parcial entre páginas via PageCutType=1PartialCutPage).
-    Default = 2 vias (1ª hóspede, 2ª hotel)."""
+    Página ÚNICA de propósito: quando precisa de 2 vias (hóspede + hotel), o
+    do_POST imprime DOIS jobs single-page (um por via) em vez de um PDF de 2
+    páginas. Multipágina só virava "fita única" no macOS via PageCutType; no PC
+    de impressão (Windows/SumatraPDF) o job de 2 páginas não saía. Cada job
+    single-page é cortado no fim (DocCutType=2FullCutPage) — formato que
+    comprovadamente imprime. via_label diferencia 'VIA DO HÓSPEDE'/'VIA DO HOTEL'."""
+    css = f"<style>@page{{size:72mm 205mm;margin:0}}{_KIT_CSS}</style>"
+    return (
+        '<!doctype html><html><head><meta charset="utf-8">' + css + '</head><body>'
+        + _render_kit_via(payload, via_label)
+        + '</body></html>'
+    )
+
+
+def kit_via_labels(payload: dict) -> "list[str | None]":
+    """Lista de via_labels a imprimir pro Kit, na ordem. copies=1 → [None]
+    (sem marca); copies=2 (default) → ['VIA DO HÓSPEDE', 'VIA DO HOTEL']."""
     try:
         copies = int(payload.get("copies", 2))
     except (TypeError, ValueError):
         copies = 2
     copies = max(1, min(3, copies))
-
-    css = f"<style>@page{{size:72mm 205mm;margin:0}}{_KIT_CSS}</style>"
-
     if copies <= 1:
-        body = _render_kit_via(payload, None)
-    else:
-        labels = ["VIA DO HÓSPEDE", "VIA DO HOTEL", "VIA EXTRA"]
-        body = "".join(_render_kit_via(payload, labels[i] if i < len(labels) else f"VIA {i+1}")
-                       for i in range(copies))
-
-    return (
-        '<!doctype html><html><head><meta charset="utf-8">' + css + '</head><body>'
-        + body
-        + '</body></html>'
-    )
+        return [None]
+    labels = ["VIA DO HÓSPEDE", "VIA DO HOTEL", "VIA EXTRA"]
+    return [labels[i] if i < len(labels) else f"VIA {i+1}" for i in range(copies)]
 
 
 def _find_chrome() -> "str | None":
@@ -1107,17 +1109,25 @@ class Handler(BaseHTTPRequestHandler):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as f:
             pdf_path = f.name
         try:
-            html = build_kit_voucher_html(payload) if payload.get("kit") else build_voucher_html(payload)
-            ok, pdf_msg = html_to_pdf(html, pdf_path)
-            if not ok:
-                return self._json(500, {"ok": False, "error": f"html_to_pdf_failed: {pdf_msg}"})
-            # Em Windows o html_to_pdf escreve em _render/ — usa o path real
-            if IS_WINDOWS and pdf_msg.endswith(".pdf"):
-                pdf_path = pdf_msg
-            _cleanup_render_dir()
-            ok, msg = send_pdf_to_printer(pdf_path)
-            if not ok:
-                return self._json(500, {"ok": False, "error": msg})
+            # Kit Alavantú: imprime UM job single-page por via (hóspede/hotel).
+            # NÃO usa PDF multipágina — esse formato não saía no PC da recepção.
+            # Demais vouchers: 1 página, 1 job (igual sempre).
+            if payload.get("kit"):
+                jobs = [build_kit_voucher_html(payload, lbl) for lbl in kit_via_labels(payload)]
+            else:
+                jobs = [build_voucher_html(payload)]
+
+            msg = ""
+            for html in jobs:
+                ok, pdf_msg = html_to_pdf(html, pdf_path)
+                if not ok:
+                    return self._json(500, {"ok": False, "error": f"html_to_pdf_failed: {pdf_msg}"})
+                # Em Windows o html_to_pdf escreve em _render/ — usa o path real
+                cur_pdf = pdf_msg if (IS_WINDOWS and pdf_msg.endswith(".pdf")) else pdf_path
+                _cleanup_render_dir()
+                ok, msg = send_pdf_to_printer(cur_pdf)
+                if not ok:
+                    return self._json(500, {"ok": False, "error": msg})
             # Log no Supabase (não bloqueia resposta).
             # Pula log quando is_test=True — impressao de teste nao
             # contabiliza no dashboard.
