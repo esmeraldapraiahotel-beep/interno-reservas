@@ -878,7 +878,6 @@
           <label class="lbl">Tipo</label>
           <select id="voucher-type">
             <option value="">Selecione…</option>
-            <option value="kit_alavantu">🇧🇷 Kit Alavantú Brasil</option>
             <option value="welcome_drink">Welcome Drink</option>
             <option value="gelato">Gelato Liberado</option>
             <option value="drink_liberado">Drink Liberado</option>
@@ -1137,11 +1136,11 @@ const VOUCHER_TYPES = {
     requires_guest:true, daily:false, excludes_kids:false,
     extra_field:{ label:"Data do passeio", placeholder:"Ex.: 18/06", default_blank:true } },
   passeio_pipa: { label:"Passeio Pipa", title:"Passeio para Pipa", subtitle:"Passeio cortesia",
-    description:"Apresente na recepção para reservar.",
+    description:"Regulamento:\n- Regulamento disponível no voucher do passageiro.\n- O passeio deverá ser agendado obrigatoriamente no ato do check-in, mediante disponibilidade.\n- O passeio contempla apenas o roteiro do destino. Alimentação, bebidas e serviços adicionais não estão inclusos.",
     requires_guest:true, daily:false, excludes_kids:false,
     extra_field:{ label:"Data do passeio", placeholder:"Ex.: 18/06", default_blank:true } },
   passeio_litoral_norte: { label:"Passeio Litoral Norte", title:"Passeio Litoral Norte", subtitle:"Passeio cortesia",
-    description:"Apresente na recepção para reservar.",
+    description:"Regulamento:\n- Regulamento disponível no voucher do passageiro.\n- O passeio deverá ser agendado obrigatoriamente no ato do check-in, mediante disponibilidade.\n- O passeio contempla apenas o roteiro do destino. Alimentação, bebidas e serviços adicionais não estão inclusos.",
     requires_guest:true, daily:false, excludes_kids:false,
     extra_field:{ label:"Data do passeio", placeholder:"Ex.: 18/06", default_blank:true } },
   vila_cvc: { label:"Vila CVC · 15% OFF", title:"Vila Promo · 15% OFF", subtitle:"Desconto especial CVC",
@@ -1699,17 +1698,29 @@ async function fetchVouchers() {
   const type = $("filter-type").value;
   const room = $("filter-room").value.trim();
   const reserva = $("filter-reserva").value.trim();
-  let url = `${SUPABASE_URL}/rest/v1/interno_voucher_log?select=*&order=issued_at.desc&limit=2000`;
+  let base = `${SUPABASE_URL}/rest/v1/interno_voucher_log?select=*&order=issued_at.desc`;
   if (days !== "all") {
     const since = new Date(Date.now() - parseInt(days)*86400_000).toISOString();
-    url += `&issued_at=gte.${encodeURIComponent(since)}`;
+    base += `&issued_at=gte.${encodeURIComponent(since)}`;
   }
-  if (type) url += `&type=eq.${encodeURIComponent(type)}`;
-  if (room) url += `&guest_room=eq.${encodeURIComponent(room)}`;
-  if (reserva) url += `&reserva=eq.${encodeURIComponent(reserva)}`;
-  const r = await fetch(url, { headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}` } });
-  if (!r.ok) throw new Error(await r.text());
-  return await r.json();
+  if (type) base += `&type=eq.${encodeURIComponent(type)}`;
+  if (room) base += `&guest_room=eq.${encodeURIComponent(room)}`;
+  if (reserva) base += `&reserva=eq.${encodeURIComponent(reserva)}`;
+  // Paginação: o PostgREST devolve no máx ~1000 linhas por resposta. Sem isso, o
+  // "Total no período" travava em 1000 e o gráfico/quebras perdiam os dias mais antigos.
+  // Buscamos página a página (Range) até trazer TUDO do período.
+  const PAGE = 1000; let from = 0, all = [], total = Infinity;
+  while (from < total && from < 100000) {
+    const r = await fetch(base, { headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, "Range-Unit":"items", Range:`${from}-${from+PAGE-1}`, Prefer:"count=exact" } });
+    if (!r.ok) throw new Error(await r.text());
+    const chunk = await r.json();
+    all = all.concat(chunk);
+    const cr = r.headers.get("content-range") || "";
+    const m = cr.match(/\/(\d+)\s*$/); if (m) total = parseInt(m[1], 10);
+    if (chunk.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
 }
 function fmtDate(iso, withTime=false) {
   const d = new Date(iso);
