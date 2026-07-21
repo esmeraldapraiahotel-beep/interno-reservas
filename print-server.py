@@ -276,8 +276,8 @@ def build_voucher_html(payload: dict) -> str:
             page_h = "140mm"   # Welcome: sem rows + regulamento curto fixo + horario
         elif _vt == "gelato":
             page_h = "165mm"   # Gelato: rows + regulamento 3 linhas
-        elif _vt == "hospede_aventureiro":
-            page_h = "180mm"   # Aventureiro: rows + regulamento 3 linhas
+        elif _vt in ("hospede_aventureiro", "city_tour", "passeio_pipa", "passeio_litoral_norte"):
+            page_h = "180mm"   # Aventureiro + passeios: rows + regulamento 3 linhas (senão corta)
         elif _vt == "hospede_romantico":
             page_h = "170mm"   # Romantico: rows + regulamento 3 linhas
         else:
