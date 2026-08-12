@@ -905,6 +905,11 @@
             <button class="btn" id="btn-lookup">Buscar</button>
           </div>
           <p class="hint">Encontrando, mostramos os hóspedes pra selecionar. Caso não ache, preencha manualmente abaixo.</p>
+          <label class="lbl" style="margin-top:12px">Ou pelo número do quarto (UH) — puxa a reserva atual do hóspede</label>
+          <div class="grid-1-1">
+            <input id="lookup-uh" placeholder="Ex.: 305" autocomplete="off" inputmode="numeric" maxlength="6">
+            <button class="btn" id="btn-lookup-uh">Buscar por UH</button>
+          </div>
         </div>
 
         <div class="card hidden" id="card-pick">
@@ -1529,6 +1534,32 @@ async function lookupReserva() {
 }
 btnLookup.addEventListener("click", lookupReserva);
 $("lookup-code").addEventListener("keydown", e => { if (e.key === "Enter") lookupReserva(); });
+
+/* Lookup por UH: resolve UH -> numero da reserva (cm_inhouse_atual, ao vivo do Oracle) e reusa lookupReserva */
+async function lookupUH() {
+  const uh = $("lookup-uh").value.trim();
+  if (!uh) { setAlert("Digite o número do quarto (UH)", "err", true); return; }
+  const b = $("btn-lookup-uh"); b.disabled = true; b.textContent = "Buscando…"; setAlert("");
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/cm_inhouse_atual?coduh=eq.${encodeURIComponent(uh)}&select=num_reserva,checkin,checkout`;
+    const r = await fetch(url, { headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}` } });
+    const rows = await r.json();
+    if (!Array.isArray(rows) || rows.length === 0) {
+      setAlert(`Quarto ${uh}: sem hóspede in-house no momento (ou ainda não sincronizado).`, "info", true);
+      return;
+    }
+    const code = String(rows[0].num_reserva || "").trim();
+    if (!code) { setAlert(`Quarto ${uh}: reserva sem número.`, "err", true); return; }
+    $("lookup-code").value = code;
+    await lookupReserva();
+  } catch (e) {
+    setAlert("Erro de rede ao buscar por UH.", "err", true);
+  } finally {
+    b.disabled = false; b.textContent = "Buscar por UH";
+  }
+}
+$("btn-lookup-uh").addEventListener("click", lookupUH);
+$("lookup-uh").addEventListener("keydown", e => { if (e.key === "Enter") lookupUH(); });
 
 /* Print */
 function generateCode(type) {
