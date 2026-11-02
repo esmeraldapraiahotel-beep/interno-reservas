@@ -533,6 +533,28 @@
   }
   .lock-btn:hover { background: rgba(0,0,0,0.05); color: var(--ink); }
   .lock-btn.unlocked { color: #2F8F5B; }
+  /* Card de quantidade (Welcome Drink): stepper − [n] + */
+  #card-qty h2 { text-align: center; }
+  #card-qty .hint { text-align: center; margin-top: 10px; }
+  .qty-wrap {
+    display: flex; align-items: stretch; gap: 10px;
+    max-width: 280px; margin: 0 auto;
+  }
+  .qty-btn {
+    width: 54px; border: 1px solid var(--border); border-radius: 12px;
+    background: #fff; cursor: pointer; font-size: 24px; font-weight: 700;
+    color: var(--brown); line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .qty-btn:hover { background: var(--brown); color: #fff; border-color: var(--brown); }
+  .qty-input {
+    flex: 1; text-align: center; font-size: 20px; font-weight: 800;
+    padding: 12px 8px !important; letter-spacing: 0.4px;
+    -moz-appearance: textfield;
+  }
+  .qty-input::-webkit-outer-spin-button,
+  .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .receipt-cap { font-size: 12px; color: var(--tan-soft); margin: 0; }
 
   /* ─── DASHBOARD ───────────────────────────────── */
@@ -969,6 +991,16 @@
           <p class="hint">Aparece em destaque no impresso. Clique no cadeado para alterar.</p>
         </div>
 
+        <div class="card" id="card-qty" style="display:none;">
+          <h2>Quantidade</h2>
+          <div class="qty-wrap">
+            <button type="button" class="qty-btn" id="qty-minus" aria-label="Diminuir">−</button>
+            <input id="f-qty" class="qty-input" type="number" min="1" max="50" value="1" inputmode="numeric">
+            <button type="button" class="qty-btn" id="qty-plus" aria-label="Aumentar">+</button>
+          </div>
+          <p class="hint">Quantos vouchers Welcome Drink imprimir de uma vez.</p>
+        </div>
+
         <div id="preview-area"></div>
 
         <label class="test-row">
@@ -1274,10 +1306,22 @@ function diasEstadia() {
 function fmtDayBR(d) {
   return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
 }
+function welcomeQty() {
+  // Quantidade escolhida para vouchers sem hóspede (Welcome Drink). Clampa 1–50.
+  const el = $("f-qty");
+  let n = parseInt(el && el.value, 10);
+  if (!Number.isFinite(n)) n = 1;
+  return Math.max(1, Math.min(50, n));
+}
+function bumpQty(delta) {
+  const el = $("f-qty");
+  el.value = String(Math.max(1, Math.min(50, (parseInt(el.value, 10) || 1) + delta)));
+  updateAll();
+}
 function computeVoucherCount() {
   const t = VOUCHER_TYPES[sel.value];
   if (!t) return 0;
-  if (!t.requires_guest) return 1;
+  if (!t.requires_guest) return welcomeQty();
   const guests = selectedGuests();
   if (guests.length === 0) return 0;
   if (!t.daily) return guests.length;
@@ -1370,12 +1414,17 @@ function renderPreview() {
   const validadeLabel = (t && t.extra_field) ? t.extra_field.label : "Validade";
   const validadeVal = $("f-validade").value.trim();
 
-  /* Welcome / sem hóspede: 1 receipt sem nome */
+  /* Welcome / sem hóspede: 1 receipt na preview (a impressão repete pela quantidade) */
   if (!t || !t.requires_guest) {
     const name = !t ? "" : ($("f-name").value.trim() || "");
     container.innerHTML = buildReceiptHTML(t, name, validadeLabel, validadeVal);
-    cap.textContent = "Papel térmico 72mm · POS80";
-    previewArea.innerHTML = "";
+    const qty = t ? welcomeQty() : 1;
+    cap.textContent = qty > 1
+      ? `${qty} vouchers · papel térmico 72mm · POS80`
+      : "Papel térmico 72mm · POS80";
+    previewArea.innerHTML = qty > 1
+      ? `<div class="alert alert-info" style="margin:0"><strong>${qty} vouchers</strong> serão impressos</div>`
+      : "";
     return;
   }
 
@@ -1442,6 +1491,7 @@ function updateAll() {
   cardForm.classList.toggle("hidden", isWelcome);
   cardPick.classList.toggle("hidden", isWelcome || foundGuests.length === 0);
   cardStay.classList.toggle("hidden", !(t && t.daily && !isWelcome));
+  document.getElementById("card-qty").style.display = isWelcome ? "" : "none";
 
   renderPickList();
   renderPreview();
@@ -1462,6 +1512,7 @@ function updateAll() {
 
 sel.addEventListener("change", () => {
   $("f-validade").value = "";
+  $("f-qty").value = "1";
   // Reseta horário pra default e tranca cadeado a cada troca de tipo
   const fw = $("f-withdrawal"), lk = $("f-withdrawal-lock");
   fw.value = "17h30 - 19h00";
@@ -1494,6 +1545,12 @@ $("f-checkin").addEventListener("change", (e) => { stayCheckin = e.target.value;
 $("f-checkout").addEventListener("change", (e) => { stayCheckout = e.target.value; updateAll(); });
 ["f-name","f-room","f-reserva","f-validade"].forEach(id => $(id).addEventListener("input", updateAll));
 $("f-test-mode").addEventListener("change", updateAll);
+
+/* Contador de quantidade (Welcome Drink) */
+$("qty-minus").addEventListener("click", () => bumpQty(-1));
+$("qty-plus").addEventListener("click", () => bumpQty(1));
+$("f-qty").addEventListener("input", updateAll);
+$("f-qty").addEventListener("change", () => { $("f-qty").value = String(welcomeQty()); updateAll(); });
 
 /* Lookup reserva */
 async function lookupReserva() {
@@ -1582,15 +1639,24 @@ async function doPrint() {
   const isTest = $("f-test-mode").checked;
   if (t.kit) { await doPrintKit(t, isTest); return; }
   if (!t.requires_guest) {
-    btnPrint.disabled = true; btnPrintTxt.textContent = "Imprimindo…";
-    try {
-      await printOne({ type:sel.value, title:t.title, subtitle:t.subtitle, description:t.description,
-        code:generateCode(sel.value), issued_at:new Date().toISOString(),
-        orientation, is_test:isTest });
-      setAlert("✓ Voucher Welcome Drink impresso.", "ok", true);
-    } catch (e) {
-      setAlert(`Erro: ${e.message}`, "err");
-    } finally { updateAll(); }
+    const qty = welcomeQty();
+    btnPrint.disabled = true; setAlert("");
+    let ok = 0; const errors = [];
+    for (let i = 0; i < qty; i++) {
+      btnPrintTxt.textContent = qty > 1 ? `Imprimindo ${ok}/${qty}…` : "Imprimindo…";
+      try {
+        // Código próprio por unidade (cada voucher é único no log/QR)
+        await printOne({ type:sel.value, title:t.title, subtitle:t.subtitle, description:t.description,
+          code:generateCode(sel.value), issued_at:new Date().toISOString(),
+          orientation, is_test:isTest });
+        ok++;
+      } catch (e) { errors.push(e.message); }
+      if (qty > 1) await new Promise(r => setTimeout(r, 400));
+    }
+    if (ok === qty) setAlert(`✓ ${ok} voucher${ok!==1?"s":""} Welcome Drink impresso${ok!==1?"s":""}.`, "ok", true);
+    else if (ok > 0) setAlert(`Parcial: ${ok}/${qty} impressos. Erro: ${errors[0]||"desconhecido"}`, "err");
+    else setAlert(`Erro: ${errors[0]||"sem detalhes"}`, "err");
+    updateAll();
     return;
   }
   const guests = selectedGuests();
